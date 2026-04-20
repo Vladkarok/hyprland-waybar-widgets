@@ -1,39 +1,38 @@
-# Hyprland Keyboard Layout Indicator for Waybar
+# Hyprland Waybar Widgets
+
+Small Waybar widgets that solve gaps in the stock modules, with a bias toward Hyprland setups.
+
+Current widgets:
+
+- `keyboard-layout.sh` - reliable keyboard layout indicator for Hyprland
+- `cpu-status.py` - CPU hover widget with per-core load, temperatures, session peaks, and short load graphs
+
+## Keyboard Layout Widget
 
 A reliable keyboard layout indicator for [Waybar](https://github.com/Alexays/Waybar) on [Hyprland](https://hyprland.org/) that works around the known IPC parsing bugs in the built-in `hyprland/language` module.
 
-## The Problem
+### Why this exists
 
-Waybar ships a built-in `hyprland/language` module, but it has well-documented issues that cause it to fail silently for many users:
+Waybar ships a built-in `hyprland/language` module, but it has documented failure modes:
 
-1. **IPC parsing bug with device names** -- Hyprland fires `activelayout` IPC events in the format `activelayout>>KEYBOARD_NAME,LAYOUT_NAME`. Keyboard names containing special characters (parentheses, periods, commas) break Waybar's parser. Common offenders include internal keyboards like `ite-tech.-inc.-ite-device(8176)-keyboard`. The module shows the layout as **empty/blank** after switching.
-
-2. **Wrong keyboard device** -- The `keyboard-name` config option targets a specific device, but the XKB layout toggle shortcut (`grp:alt_shift_toggle`, etc.) may fire events from a *different* keyboard device than expected. For example, events may fire from the internal ITE keyboard but not from `at-translated-set-2-keyboard`.
-
-3. **Upstream won't fix** -- [Hyprland issue #6298](https://github.com/hyprwm/Hyprland/issues/6298) proposed fixing the ambiguous comma-separated IPC format, but was closed as "not planned" (Feb 2025).
+1. Device names with special characters can break IPC event parsing.
+2. The configured `keyboard-name` may not be the device that actually emits the layout event.
+3. The upstream Hyprland event format is ambiguous and has not been changed.
 
 Related issues:
-- [Waybar #4340](https://github.com/Alexays/Waybar/issues/4340) -- Parsing failure with complex device names
-- [Waybar #2544](https://github.com/Alexays/Waybar/issues/2544) -- Empty display after layout change
-- [Waybar #4229](https://github.com/Alexays/Waybar/issues/4229) -- Module stops updating (regression)
-- [Waybar #4301](https://github.com/Alexays/Waybar/issues/4301) -- Indicator freezes after IPC warning
-- [Omarchy Discussion #111](https://github.com/basecamp/omarchy/discussions/111) -- Display active keyboard layout in Waybar
 
-## The Solution
+- [Waybar #4340](https://github.com/Alexays/Waybar/issues/4340)
+- [Waybar #2544](https://github.com/Alexays/Waybar/issues/2544)
+- [Waybar #4229](https://github.com/Alexays/Waybar/issues/4229)
+- [Waybar #4301](https://github.com/Alexays/Waybar/issues/4301)
+- [Hyprland #6298](https://github.com/hyprwm/Hyprland/issues/6298)
+- [Omarchy Discussion #111](https://github.com/basecamp/omarchy/discussions/111)
 
-This script bypasses the broken IPC event parser entirely. Instead of parsing the `activelayout>>` event string, it:
+### Dependencies
 
-1. **Listens** to the Hyprland IPC socket for any `activelayout` event (as a trigger only)
-2. **Queries** `hyprctl devices -j` to read the actual device state via JSON API
-3. **Outputs** Waybar-compatible JSON with text, tooltip, and CSS class
-
-This approach is reliable regardless of device name complexity because `hyprctl devices -j` returns proper JSON that `jq` parses correctly.
-
-## Dependencies
-
-- `hyprctl` (comes with Hyprland)
-- `jq` -- JSON processor
-- `socat` -- for listening to the Hyprland IPC socket
+- `hyprctl`
+- `jq`
+- `socat`
 
 ```bash
 # Arch Linux
@@ -46,25 +45,15 @@ sudo apt install jq socat
 sudo dnf install jq socat
 ```
 
-## Installation
+### Install
 
-### 1. Find your keyboard device name
+1. Find the keyboard device name:
 
 ```bash
 hyprctl devices -j | jq -r '.keyboards[] | .name'
 ```
 
-Pick the keyboard that corresponds to your physical keyboard. Common choices:
-- `at-translated-set-2-keyboard` (standard PS/2 keyboard)
-- An `ite-tech` or vendor-specific device (laptop internal keyboard)
-
-> **Tip:** To identify which device fires events when you press your layout toggle shortcut, run:
-> ```bash
-> socat -u UNIX-CONNECT:$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock - | grep activelayout
-> ```
-> Then press your layout toggle shortcut and see which keyboard name appears.
-
-### 2. Copy the script
+2. Copy the script:
 
 ```bash
 mkdir -p ~/.config/waybar/scripts
@@ -72,18 +61,13 @@ cp keyboard-layout.sh ~/.config/waybar/scripts/
 chmod +x ~/.config/waybar/scripts/keyboard-layout.sh
 ```
 
-### 3. Configure Waybar
-
-Add the module to your Waybar config (`~/.config/waybar/config.jsonc`):
+3. Add the module to Waybar:
 
 ```jsonc
-// Add to modules-left, modules-center, or modules-right:
 "modules-right": [
-    "custom/language",
-    // ... your other modules
+    "custom/language"
 ],
 
-// Module definition:
 "custom/language": {
     "exec": "~/.config/waybar/scripts/keyboard-layout.sh <YOUR_KEYBOARD_NAME>",
     "return-type": "json",
@@ -91,18 +75,13 @@ Add the module to your Waybar config (`~/.config/waybar/config.jsonc`):
 },
 ```
 
-Replace `<YOUR_KEYBOARD_NAME>` with the device name from step 1. If omitted, defaults to `at-translated-set-2-keyboard`.
-
-### 4. Style (optional)
-
-Add to your Waybar stylesheet (`~/.config/waybar/style.css`):
+4. Optional CSS:
 
 ```css
 #custom-language {
     margin-right: 15px;
 }
 
-/* Per-language styling using CSS classes */
 #custom-language.en {
     color: #89b4fa;
 }
@@ -112,47 +91,84 @@ Add to your Waybar stylesheet (`~/.config/waybar/style.css`):
 }
 ```
 
-### 5. Restart Waybar
+### How it works
+
+The script listens for `activelayout` IPC events only as a trigger, then reads the actual keyboard state from `hyprctl devices -j`. That avoids brittle parsing of the raw socket payload and keeps the widget reliable even with odd device names.
+
+## CPU Hover Widget
+
+A Waybar CPU icon widget with a detailed hover tooltip:
+
+- total CPU load
+- per-core load
+- per-core temperature when exposed by the kernel
+- highest temperature seen in the current boot session
+- 10-sample load sparklines for total and per-core activity
+
+### Dependencies
+
+- `python3`
+
+The script reads `/proc/stat`, `/sys/class/hwmon`, and `/sys/class/thermal` directly. No external Python packages are required.
+
+### Install
+
+1. Copy the script:
 
 ```bash
-pkill waybar && waybar &disown
+mkdir -p ~/.config/waybar/scripts
+cp cpu-status.py ~/.config/waybar/scripts/
+chmod +x ~/.config/waybar/scripts/cpu-status.py
 ```
 
-## How It Works
+2. Replace the stock `cpu` module with a custom one:
 
+```jsonc
+"modules-right": [
+    "custom/cpu"
+],
+
+"custom/cpu": {
+    "exec": "python3 ~/.config/waybar/scripts/cpu-status.py",
+    "return-type": "json",
+    "interval": 1,
+    "tooltip": true
+},
 ```
-  Hyprland IPC Socket                    hyprctl devices -j
-  ┌─────────────────┐                   ┌─────────────────┐
-  │ activelayout>>   │  ── trigger ──>  │ JSON API query   │
-  │ keyboard,layout  │                   │ (reliable parse) │
-  └─────────────────┘                   └────────┬────────┘
-                                                  │
-                                                  v
-                                         ┌─────────────────┐
-                                         │ Waybar JSON out  │
-                                         │ {"text": "UA"}   │
-                                         └─────────────────┘
+
+3. Optional CSS for temperature-based color states:
+
+```css
+#custom-cpu.warm {
+    color: #d79921;
+}
+
+#custom-cpu.hot {
+    color: #fe8019;
+}
+
+#custom-cpu.critical {
+    color: #fb4934;
+}
 ```
 
-1. The script starts by outputting the current layout state
-2. It opens a persistent connection to the Hyprland IPC socket via `socat`
-3. When any `activelayout` event arrives, it waits 150ms for rapid toggles to settle (debounce)
-4. It queries `hyprctl devices -j` and extracts the `active_keymap` for the target keyboard
-5. It maps the keymap name to a short code and outputs Waybar JSON
-
-## Supported Languages
-
-The script includes mappings for 30+ languages out of the box. Unmapped languages fall back to the first two characters of the keymap name. To add a custom mapping, add a case in the `get_layout()` function:
+4. Reload Waybar:
 
 ```bash
-*YourLanguage*) printf '{"text": "XX", "tooltip": "YourLanguage", "class": "xx"}\n' ;;
+pkill -USR2 waybar
 ```
+
+### Notes
+
+- On many Intel CPUs, temperature sensors are exposed per physical core, not per logical thread. In that case sibling threads share the same temperature reading.
+- The `peak` value is session-tracked by the script. It is not a firmware or hardware lifetime maximum.
+- The mini graph is CPU load history, not temperature history.
 
 ## Tested On
 
 - Hyprland 0.54.1
 - Waybar 0.15.0
-- Arch Linux (Omarchy)
+- Arch Linux
 
 ## License
 
