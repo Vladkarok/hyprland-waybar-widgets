@@ -1,198 +1,187 @@
-# Hyprland Waybar Widgets
+# Omarchy Fixes
 
-Small Waybar widgets that solve gaps in the stock modules, with a bias toward Hyprland setups.
+Small fixes I keep around for an Omarchy setup.
 
-Current widgets:
+This repo currently has two buckets:
 
-- `keyboard-layout.sh` - reliable keyboard layout indicator for Hyprland
-- `cpu-status.py` - CPU hover widget with per-core load, temperatures, session peaks, and short load graphs
+- `waybar/`: custom Waybar widgets and config snippets
+- `omarchy/`: power profile fixes for Omarchy's menu and resume flow
 
-Config snippets:
+## Waybar
 
-- `examples/memory-builtin.jsonc` - icon-only built-in Waybar memory module with tooltip details
-- `examples/memory-builtin.css` - warning / critical colors for the built-in memory module
+Included files:
 
-## Keyboard Layout Widget
+- `waybar/keyboard-layout.sh`: reliable keyboard layout indicator for Hyprland
+- `waybar/cpu-status.py`: icon-only CPU widget with per-core hover details and short load graphs
+- `waybar/examples/memory-builtin.jsonc`: built-in Waybar memory widget example
+- `waybar/examples/memory-builtin.css`: matching memory widget colors
 
-A reliable keyboard layout indicator for [Waybar](https://github.com/Alexays/Waybar) on [Hyprland](https://hyprland.org/) that works around the known IPC parsing bugs in the built-in `hyprland/language` module.
+### Keyboard Layout Widget
 
-### Why this exists
+This works around the known IPC parsing problems in Waybar's built-in `hyprland/language` module by treating the socket event as a trigger and reading the real layout state from `hyprctl devices -j`.
 
-Waybar ships a built-in `hyprland/language` module, but it has documented failure modes:
-
-1. Device names with special characters can break IPC event parsing.
-2. The configured `keyboard-name` may not be the device that actually emits the layout event.
-3. The upstream Hyprland event format is ambiguous and has not been changed.
-
-Related issues:
-
-- [Waybar #4340](https://github.com/Alexays/Waybar/issues/4340)
-- [Waybar #2544](https://github.com/Alexays/Waybar/issues/2544)
-- [Waybar #4229](https://github.com/Alexays/Waybar/issues/4229)
-- [Waybar #4301](https://github.com/Alexays/Waybar/issues/4301)
-- [Hyprland #6298](https://github.com/hyprwm/Hyprland/issues/6298)
-- [Omarchy Discussion #111](https://github.com/basecamp/omarchy/discussions/111)
-
-### Dependencies
+Dependencies:
 
 - `hyprctl`
 - `jq`
 - `socat`
 
+Install:
+
 ```bash
-# Arch Linux
-sudo pacman -S jq socat
-
-# Debian/Ubuntu
-sudo apt install jq socat
-
-# Fedora
-sudo dnf install jq socat
+mkdir -p ~/.config/waybar/scripts
+install -m755 waybar/keyboard-layout.sh ~/.config/waybar/scripts/keyboard-layout.sh
 ```
 
-### Install
-
-1. Find the keyboard device name:
+Find your keyboard device name:
 
 ```bash
 hyprctl devices -j | jq -r '.keyboards[] | .name'
 ```
 
-2. Copy the script:
-
-```bash
-mkdir -p ~/.config/waybar/scripts
-cp keyboard-layout.sh ~/.config/waybar/scripts/
-chmod +x ~/.config/waybar/scripts/keyboard-layout.sh
-```
-
-3. Add the module to Waybar:
+Waybar snippet:
 
 ```jsonc
 "modules-right": [
-    "custom/language"
+  "custom/language"
 ],
 
 "custom/language": {
-    "exec": "~/.config/waybar/scripts/keyboard-layout.sh <YOUR_KEYBOARD_NAME>",
-    "return-type": "json",
-    "on-click": "hyprctl switchxkblayout all next"
-},
+  "exec": "~/.config/waybar/scripts/keyboard-layout.sh <YOUR_KEYBOARD_NAME>",
+  "return-type": "json",
+  "on-click": "hyprctl switchxkblayout all next"
+}
 ```
 
-4. Optional CSS:
+Optional CSS:
 
 ```css
-#custom-language {
-    margin-right: 15px;
-}
-
 #custom-language.en {
-    color: #89b4fa;
+  color: #89b4fa;
 }
 
 #custom-language.ua {
-    color: #f9e2af;
+  color: #f9e2af;
 }
 ```
 
-### How it works
+### CPU Hover Widget
 
-The script listens for `activelayout` IPC events only as a trigger, then reads the actual keyboard state from `hyprctl devices -j`. That avoids brittle parsing of the raw socket payload and keeps the widget reliable even with odd device names.
+This replaces the stock `cpu` module with a custom icon widget that keeps the bar compact but makes the hover tooltip much more useful.
 
-## CPU Hover Widget
-
-A Waybar CPU icon widget with a detailed hover tooltip:
+Tooltip data:
 
 - total CPU load
 - per-core load
 - per-core temperature when exposed by the kernel
-- highest temperature seen in the current boot session
-- 10-sample load sparklines for total and per-core activity
+- session peak temperature
+- 10-sample CPU load sparklines for total and per-core history
 
-### Dependencies
-
-- `python3`
-
-The script reads `/proc/stat`, `/sys/class/hwmon`, and `/sys/class/thermal` directly. No external Python packages are required.
-
-### Install
-
-1. Copy the script:
+Install:
 
 ```bash
 mkdir -p ~/.config/waybar/scripts
-cp cpu-status.py ~/.config/waybar/scripts/
-chmod +x ~/.config/waybar/scripts/cpu-status.py
+install -m755 waybar/cpu-status.py ~/.config/waybar/scripts/cpu-status.py
 ```
 
-2. Replace the stock `cpu` module with a custom one:
+Waybar snippet:
 
 ```jsonc
 "modules-right": [
-    "custom/cpu"
+  "custom/cpu"
 ],
 
 "custom/cpu": {
-    "exec": "python3 ~/.config/waybar/scripts/cpu-status.py",
-    "return-type": "json",
-    "interval": 1,
-    "tooltip": true
-},
+  "exec": "python3 ~/.config/waybar/scripts/cpu-status.py",
+  "return-type": "json",
+  "interval": 1,
+  "tooltip": true
+}
 ```
 
-3. Optional CSS for temperature-based color states:
+Optional CSS:
 
 ```css
 #custom-cpu.warm {
-    color: #d79921;
+  color: #d79921;
 }
 
 #custom-cpu.hot {
-    color: #fe8019;
+  color: #fe8019;
 }
 
 #custom-cpu.critical {
-    color: #fb4934;
+  color: #fb4934;
 }
 ```
 
-4. Reload Waybar:
+Notes:
 
-```bash
-pkill -USR2 waybar
-```
+- On many Intel CPUs, temperatures are exposed per physical core, not per logical thread.
+- The `peak` value is tracked by the script for the current boot session.
+- The sparkline is CPU load history, not temperature history.
 
-### Notes
+### Built-in Memory Widget
 
-- On many Intel CPUs, temperature sensors are exposed per physical core, not per logical thread. In that case sibling threads share the same temperature reading.
-- The `peak` value is session-tracked by the script. It is not a firmware or hardware lifetime maximum.
-- The mini graph is CPU load history, not temperature history.
-
-## Built-in Memory Widget
-
-If you do not need a custom RAM history graph yet, Waybar's built-in `memory` module is enough for a clean icon-only widget with a useful tooltip.
+If you do not need a custom RAM graph yet, the built-in `memory` module is enough for an icon-only widget with a useful hover tooltip.
 
 Files:
 
-- `examples/memory-builtin.jsonc`
-- `examples/memory-builtin.css`
+- `waybar/examples/memory-builtin.jsonc`
+- `waybar/examples/memory-builtin.css`
 
 Recommended behavior:
 
-- show only the memory icon in the bar
+- show only the icon in the bar
 - show percentage and used / total GiB on hover
-- keep color changes with `warning` / `critical` states
+- keep warning and critical colors through `states`
 
-Example tooltip output:
+## Omarchy
 
-```text
-43%
-12.7G / 31.1G
+Included files:
+
+- `omarchy/bin/omarchy-powerprofiles-apply`
+- `omarchy/bin/omarchy-powerprofiles-set`
+- `omarchy/default/systemd/system-sleep/resume-boost`
+- `omarchy/patches/omarchy-menu-power-profile.patch`
+
+These fix two separate issues in Omarchy's power profile flow:
+
+1. `powerprofilesctl` can report a profile change while CPU governors remain stuck on `performance`, so the actual behavior does not change.
+2. Walker can keep the visual focus on the first row, so the power menu can appear to highlight the wrong current profile.
+
+### What The Fixes Do
+
+- `omarchy-powerprofiles-apply` applies the requested profile and repairs the stuck-governor case before retrying.
+- `omarchy-powerprofiles-set` routes AC and battery transitions through that helper.
+- `resume-boost` uses the same helper when switching to `performance` on resume and when restoring the prior profile.
+- `omarchy-menu-power-profile.patch` makes the power menu put the current profile first and call the helper instead of raw `powerprofilesctl set`.
+
+### Install
+
+Copy the helper scripts into your Omarchy checkout:
+
+```bash
+install -Dm755 omarchy/bin/omarchy-powerprofiles-apply ~/.local/share/omarchy/bin/omarchy-powerprofiles-apply
+install -Dm755 omarchy/bin/omarchy-powerprofiles-set ~/.local/share/omarchy/bin/omarchy-powerprofiles-set
+install -Dm755 omarchy/default/systemd/system-sleep/resume-boost ~/.local/share/omarchy/default/systemd/system-sleep/resume-boost
 ```
+
+Apply the menu patch from the Omarchy repo root:
+
+```bash
+cd ~/.local/share/omarchy
+git apply /path/to/this/repo/omarchy/patches/omarchy-menu-power-profile.patch
+```
+
+Notes:
+
+- The governor recovery path uses `sudo -n` when it is not already running as root.
+- The helper only resets governors when a non-`performance` profile should be active and the kernel is still pinned to `performance`.
 
 ## Tested On
 
+- Omarchy 3.5.1
 - Hyprland 0.54.1
 - Waybar 0.15.0
 - Arch Linux

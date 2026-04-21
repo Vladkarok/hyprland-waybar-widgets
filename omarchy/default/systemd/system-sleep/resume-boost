@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# Temporarily switch to performance power profile on resume
+# to avoid sluggishness while the system catches up, then
+# restore the previous profile after 10 seconds.
+
+OMARCHY_POWER_HELPER="/home/vladkarok/.local/share/omarchy/bin/omarchy-powerprofiles-apply"
+
+if [[ $1 == "pre" ]]; then
+  mkdir -p /run/omarchy
+  powerprofilesctl get > /run/omarchy/power-profile-before-sleep
+fi
+
+if [[ $1 == "post" ]]; then
+  previous=$(cat /run/omarchy/power-profile-before-sleep 2>/dev/null || echo "balanced")
+  "$OMARCHY_POWER_HELPER" performance
+  systemd-run --on-active=10 --timer-property=AccuracySec=1 "$OMARCHY_POWER_HELPER" "$previous"
+fi
