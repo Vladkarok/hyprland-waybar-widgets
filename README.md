@@ -218,6 +218,26 @@ is intentional: `~/.local/bin/` shadows the Omarchy command on `PATH`, so the
 override survives `omarchy-update` instead of being overwritten on every
 update.
 
+**Important — make sure `~/.local/bin` is on Hyprland's PATH.** Omarchy's
+`~/.config/uwsm/env` ships with:
+
+```sh
+export PATH=$OMARCHY_PATH/bin/:$PATH
+```
+
+That prepends the omarchy bin dir but does *not* add `~/.local/bin`, which
+also is not on the default systemd user PATH. Without this, `which
+omarchy-cmd-screenshot` in your shell will return the override but Hyprland
+keybindings (PRINT etc.) will still execute the omarchy-shipped script.
+
+Patch `~/.config/uwsm/env`:
+
+```sh
+export PATH=$HOME/.local/bin:$OMARCHY_PATH/bin/:$PATH
+```
+
+Relaunch Hyprland (logout / `uwsm stop`) for the change to take effect.
+
 Notes:
 
 - State file: `~/.config/omarchy/screenshot_last_dir`. Safe to delete to
