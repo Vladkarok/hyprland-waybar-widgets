@@ -12,7 +12,7 @@ This repo currently has two buckets:
 Included files:
 
 - `waybar/keyboard-layout.sh`: reliable keyboard layout indicator for Hyprland
-- `waybar/cpu-status.py`: icon-only CPU widget with per-core hover details and short load graphs
+- `waybar/cpu-status.py`: CPU widget showing total usage % next to the icon, with per-core hover details and short load graphs
 - `waybar/examples/memory-builtin.jsonc`: built-in Waybar memory widget example
 - `waybar/examples/memory-builtin.css`: matching memory widget colors
 
@@ -67,7 +67,7 @@ Optional CSS:
 
 ### CPU Hover Widget
 
-This replaces the stock `cpu` module with a custom icon widget that keeps the bar compact but makes the hover tooltip much more useful.
+This replaces the stock `cpu` module with a custom widget that shows total CPU usage % to the left of the icon and exposes much more detail on hover.
 
 Tooltip data:
 
@@ -123,7 +123,7 @@ Notes:
 
 ### Built-in Memory Widget
 
-If you do not need a custom RAM graph yet, the built-in `memory` module is enough for an icon-only widget with a useful hover tooltip.
+If you do not need a custom RAM graph yet, the built-in `memory` module is enough — the example shows usage % next to the icon with a useful hover tooltip.
 
 Files:
 
@@ -132,7 +132,7 @@ Files:
 
 Recommended behavior:
 
-- show only the icon in the bar
+- show usage percentage to the left of the icon in the bar
 - show percentage and used / total GiB on hover
 - keep warning and critical colors through `states`
 

@@ -176,8 +176,9 @@ def main():
         peaks["package"] = package_temp if previous_peak is None else max(previous_peak, package_temp)
 
     lines = []
+    total_graph = sparkline(history["total"])
     lines.append(
-        f"Total : {total_usage:>3}%  {format_temp(package_temp)}  peak {format_temp(peaks.get('package'))}  {sparkline(history['total'])}"
+        f"Total : {total_usage:>3}%  {format_temp(package_temp)}  peak {format_temp(peaks.get('package'))}  {total_graph}"
     )
 
     core_history = history.setdefault("cores", {})
@@ -201,9 +202,10 @@ def main():
             f"{f'Core{cpu}':<{label_width}}: {usage:>3}%  {format_temp(temp)}  peak {format_temp(peak)}  {sparkline(samples)}"
         )
 
+    tooltip = "<tt>" + "\n".join(lines) + "</tt>"
     payload = {
-        "text": "󰍛",
-        "tooltip": "<tt>" + "\n".join(lines) + "</tt>",
+        "text": f"{total_usage}% 󰍛",
+        "tooltip": tooltip,
         "class": temp_class(package_temp),
         "percentage": int(package_temp if package_temp is not None else total_usage),
     }
