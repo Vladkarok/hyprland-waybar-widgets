@@ -143,7 +143,6 @@ Included files:
 - `omarchy/bin/omarchy-powerprofiles-apply`
 - `omarchy/bin/omarchy-powerprofiles-set`
 - `omarchy/bin/omarchy-cmd-screenshot`
-- `omarchy/default/systemd/system-sleep/resume-boost`
 - `omarchy/patches/omarchy-menu-power-profile.patch`
 
 ### Power Profile Fixes
@@ -157,7 +156,6 @@ These fix two separate issues in Omarchy's power profile flow:
 
 - `omarchy-powerprofiles-apply` applies the requested profile and repairs the stuck-governor case before retrying.
 - `omarchy-powerprofiles-set` routes AC and battery transitions through that helper.
-- `resume-boost` uses the same helper when switching to `performance` on resume and when restoring the prior profile.
 - `omarchy-menu-power-profile.patch` makes the power menu put the current profile first and call the helper instead of raw `powerprofilesctl set`.
 
 ### Install
@@ -167,7 +165,6 @@ Copy the helper scripts into your Omarchy checkout:
 ```bash
 install -Dm755 omarchy/bin/omarchy-powerprofiles-apply ~/.local/share/omarchy/bin/omarchy-powerprofiles-apply
 install -Dm755 omarchy/bin/omarchy-powerprofiles-set ~/.local/share/omarchy/bin/omarchy-powerprofiles-set
-install -Dm755 omarchy/default/systemd/system-sleep/resume-boost ~/.local/share/omarchy/default/systemd/system-sleep/resume-boost
 ```
 
 Apply the menu patch from the Omarchy repo root:
