@@ -142,8 +142,11 @@ Included files:
 
 - `omarchy/bin/omarchy-powerprofiles-apply`
 - `omarchy/bin/omarchy-powerprofiles-set`
+- `omarchy/bin/omarchy-cmd-screenshot`
 - `omarchy/default/systemd/system-sleep/resume-boost`
 - `omarchy/patches/omarchy-menu-power-profile.patch`
+
+### Power Profile Fixes
 
 These fix two separate issues in Omarchy's power profile flow:
 
@@ -178,6 +181,51 @@ Notes:
 
 - The governor recovery path uses `sudo -n` when it is not already running as root.
 - The helper only resets governors when a non-`performance` profile should be active and the kernel is still pinned to `performance`.
+
+### Screenshot: Save-As Directory Memory + Auto-Close
+
+Customized fork of Omarchy's `omarchy-cmd-screenshot`. Two quality-of-life
+fixes for the satty editor path; the rest of the script is unchanged from
+upstream.
+
+**1. Remember the last "Save As" directory.**
+
+The default GTK4 file chooser opens in `recent`, which means every "Save As"
+starts somewhere unrelated to where you last saved a screenshot. This fork:
+
+- Reads the last directory from `~/.config/omarchy/screenshot_last_dir`.
+- Sets `org.gtk.gtk4.Settings.FileChooser startup-mode 'cwd'` and `cd`s into
+  that directory before launching satty, so the file chooser opens there.
+- After satty exits, restores `startup-mode 'recent'` and scans
+  `~/.local/share/recently-used.xbel` for an image file saved during this
+  invocation. If found, its directory is written back to the state file.
+
+**2. Auto-close satty after save / copy / save-as.**
+
+Satty 0.20.1 split the old `--early-exit` behavior into separate flags. This
+fork passes both `--early-exit` and `--early-exit-save-as`, and changes
+`--actions-on-enter` from `save-to-clipboard` to `save-to-clipboard,exit`
+as a belt-and-suspenders for the Enter path.
+
+Install:
+
+```bash
+install -Dm755 omarchy/bin/omarchy-cmd-screenshot ~/.local/bin/omarchy-cmd-screenshot
+```
+
+The install path is `~/.local/bin/`, not `~/.local/share/omarchy/bin/`. This
+is intentional: `~/.local/bin/` shadows the Omarchy command on `PATH`, so the
+override survives `omarchy-update` instead of being overwritten on every
+update.
+
+Notes:
+
+- State file: `~/.config/omarchy/screenshot_last_dir`. Safe to delete to
+  reset back to `~/Pictures` (or whatever `OMARCHY_SCREENSHOT_DIR` is set to).
+- The directory tracking depends on GTK writing to `recently-used.xbel`,
+  which it does for the standard GTK4 file chooser.
+- This is a candidate for an upstream PR. Earlier related PRs (#2421, #3226)
+  are stale; the save-as-directory behavior in particular is fresh ground.
 
 ## Tested On
 

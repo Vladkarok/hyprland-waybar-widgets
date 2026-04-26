@@ -1,0 +1,168 @@
+#!/bin/bash
+
+# Take a screenshot of the whole screen, a specific window, or a user-drawn region.
+# Saves to ~/Pictures by default, but that can be changed via OMARCHY_SCREENSHOT_DIR or XDG_PICTURES_DIR ENVs.
+# Editor defaults to Satty but can be changed via --editor=<name> or OMARCHY_SCREENSHOT_EDITOR env
+#
+# Customized fork of Omarchy's omarchy-cmd-screenshot. Differences vs upstream
+# are confined to open_editor() for the satty path; see README in
+# https://github.com/Vladkarok/omarchy-fixes for details.
+
+[[ -f ~/.config/user-dirs.dirs ]] && source ~/.config/user-dirs.dirs
+OUTPUT_DIR="${OMARCHY_SCREENSHOT_DIR:-${XDG_PICTURES_DIR:-$HOME/Pictures}}"
+
+if [[ ! -d $OUTPUT_DIR ]]; then
+  notify-send "Screenshot directory does not exist: $OUTPUT_DIR" -u critical -t 3000
+  exit 1
+fi
+
+pkill slurp && exit 0
+
+SCREENSHOT_EDITOR="${OMARCHY_SCREENSHOT_EDITOR:-satty}"
+LAST_DIR_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/screenshot_last_dir"
+
+# Parse --editor flag from any position
+ARGS=()
+for arg in "$@"; do
+  if [[ $arg == --editor=* ]]; then
+    SCREENSHOT_EDITOR="${arg#--editor=}"
+  else
+    ARGS+=("$arg")
+  fi
+done
+set -- "${ARGS[@]}"
+
+open_editor() {
+  local filepath="$1"
+  if [[ $SCREENSHOT_EDITOR == "satty" ]]; then
+    local work_dir
+    work_dir="$(dirname "$filepath")"
+    if [[ -f "$LAST_DIR_FILE" ]]; then
+      local saved_dir
+      saved_dir=$(<"$LAST_DIR_FILE")
+      [[ -d "$saved_dir" ]] && work_dir="$saved_dir"
+    fi
+
+    local before_time
+    before_time=$(date +%s)
+
+    gsettings set org.gtk.gtk4.Settings.FileChooser startup-mode 'cwd'
+    cd "$work_dir" || cd "$(dirname "$filepath")"
+
+    satty --filename "$filepath" \
+      --output-filename "$filepath" \
+      --actions-on-enter 'save-to-clipboard,exit' \
+      --save-after-copy \
+      --copy-command 'wl-copy' \
+      --early-exit \
+      --early-exit-save-as
+
+    gsettings set org.gtk.gtk4.Settings.FileChooser startup-mode 'recent'
+
+    if [[ -f ~/.local/share/recently-used.xbel ]]; then
+      local last_saved
+      last_saved=$(grep -oP 'href="file://\K[^"]+\.(png|jpe?g|webp|gif|bmp|tiff?)' ~/.local/share/recently-used.xbel | \
+        tail -1 | python3 -c "import sys, urllib.parse; print(urllib.parse.unquote(sys.stdin.read().strip()))" 2>/dev/null)
+
+      if [[ -n "$last_saved" && -f "$last_saved" ]]; then
+        local file_time
+        file_time=$(stat -c %Y "$last_saved" 2>/dev/null || echo 0)
+        if (( file_time >= before_time )); then
+          mkdir -p "$(dirname "$LAST_DIR_FILE")"
+          dirname "$last_saved" > "$LAST_DIR_FILE"
+        fi
+      fi
+    fi
+  else
+    $SCREENSHOT_EDITOR "$filepath"
+  fi
+}
+
+MODE="${1:-smart}"
+PROCESSING="${2:-slurp}"
+
+# accounting for portrait/transformed displays
+JQ_MONITOR_GEO='
+  def format_geo:
+    .x as $x | .y as $y |
+    (.width / .scale | floor) as $w |
+    (.height / .scale | floor) as $h |
+    .transform as $t |
+    if $t == 1 or $t == 3 then
+      "\($x),\($y) \($h)x\($w)"
+    else
+      "\($x),\($y) \($w)x\($h)"
+    end;
+'
+
+get_rectangles() {
+  local active_workspace=$(hyprctl monitors -j | jq -r '.[] | select(.focused == true) | .activeWorkspace.id')
+  hyprctl monitors -j | jq -r --arg ws "$active_workspace" "${JQ_MONITOR_GEO} .[] | select(.activeWorkspace.id == (\$ws | tonumber)) | format_geo"
+  hyprctl clients -j | jq -r --arg ws "$active_workspace" '.[] | select(.workspace.id == ($ws | tonumber)) | "\(.at[0]),\(.at[1]) \(.size[0])x\(.size[1])"'
+}
+
+# Select based on mode
+case "$MODE" in
+  region)
+    hyprpicker -r -z >/dev/null 2>&1 & PID=$!
+    sleep .1
+    SELECTION=$(slurp 2>/dev/null)
+    kill $PID 2>/dev/null
+    ;;
+  windows)
+    hyprpicker -r -z >/dev/null 2>&1 & PID=$!
+    sleep .1
+    SELECTION=$(get_rectangles | slurp -r 2>/dev/null)
+    kill $PID 2>/dev/null
+    ;;
+  fullscreen)
+    SELECTION=$(hyprctl monitors -j | jq -r "${JQ_MONITOR_GEO} .[] | select(.focused == true) | format_geo")
+    ;;
+  smart|*)
+    RECTS=$(get_rectangles)
+    hyprpicker -r -z >/dev/null 2>&1 & PID=$!
+    sleep .1
+    SELECTION=$(echo "$RECTS" | slurp 2>/dev/null)
+    kill $PID 2>/dev/null
+
+  # If the selection area is L * W < 20, we'll assume you were trying to select whichever
+  # window or output it was inside of to prevent accidental 2px snapshots
+  if [[ $SELECTION =~ ^([0-9]+),([0-9]+)[[:space:]]([0-9]+)x([0-9]+)$ ]]; then
+    if ((${BASH_REMATCH[3]} * ${BASH_REMATCH[4]} < 20)); then
+      click_x="${BASH_REMATCH[1]}"
+      click_y="${BASH_REMATCH[2]}"
+
+      while IFS= read -r rect; do
+        if [[ $rect =~ ^([0-9]+),([0-9]+)[[:space:]]([0-9]+)x([0-9]+) ]]; then
+          rect_x="${BASH_REMATCH[1]}"
+          rect_y="${BASH_REMATCH[2]}"
+          rect_width="${BASH_REMATCH[3]}"
+          rect_height="${BASH_REMATCH[4]}"
+
+          if ((click_x >= rect_x && click_x < rect_x + rect_width && click_y >= rect_y && click_y < rect_y + rect_height)); then
+            SELECTION="${rect_x},${rect_y} ${rect_width}x${rect_height}"
+            break
+          fi
+        fi
+      done <<<"$RECTS"
+    fi
+  fi
+  ;;
+esac
+
+[[ -z $SELECTION ]] && exit 0
+
+FILENAME="screenshot-$(date +'%Y-%m-%d_%H-%M-%S').png"
+FILEPATH="$OUTPUT_DIR/$FILENAME"
+
+if [[ $PROCESSING == "slurp" ]]; then
+  grim -g "$SELECTION" "$FILEPATH" || exit 1
+  wl-copy <"$FILEPATH"
+
+  (
+    ACTION=$(notify-send "Screenshot saved to clipboard and file" "Edit with Super + Alt + , (or click this)" -t 10000 -i "$FILEPATH" -A "default=edit")
+    [[ $ACTION == "default" ]] && open_editor "$FILEPATH"
+  ) &
+else
+  grim -g "$SELECTION" - | wl-copy
+fi
