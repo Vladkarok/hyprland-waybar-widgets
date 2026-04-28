@@ -204,7 +204,7 @@ def main():
 
     tooltip = "<tt>" + "\n".join(lines) + "</tt>"
     payload = {
-        "text": f"{total_usage}% 󰍛",
+        "text": f"{' ' if total_usage < 10 else ''}{total_usage}% 󰍛",
         "tooltip": tooltip,
         "class": temp_class(package_temp),
         "percentage": int(package_temp if package_temp is not None else total_usage),
