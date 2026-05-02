@@ -13,8 +13,11 @@ Included files:
 
 - `waybar/keyboard-layout.sh`: reliable keyboard layout indicator for Hyprland
 - `waybar/cpu-status.py`: CPU widget showing total usage % next to the icon, with per-core hover details and short load graphs
+- `waybar/volume-status.py`: volume widget showing rough level glyphs with exact 0% and muted handling
 - `waybar/examples/memory-builtin.jsonc`: built-in Waybar memory widget example
 - `waybar/examples/memory-builtin.css`: matching memory widget colors
+- `waybar/examples/pulseaudio-volume-level.jsonc`: custom Waybar volume widget example showing rough volume level with compact glyphs
+- `waybar/examples/pulseaudio-volume-level.css`: optional stable width for the volume widget
 
 ### Keyboard Layout Widget
 
@@ -135,6 +138,71 @@ Recommended behavior:
 - show usage percentage to the left of the icon in the bar
 - show percentage and used / total GiB on hover
 - keep warning and critical colors through `states`
+
+### Volume Level Indicator
+
+Omarchy's stock `pulseaudio` module can show only one icon per output type and cannot distinguish exact `0%` from other values in the first icon bucket. The custom example keeps the widget icon-only but uses a tiny left-side level glyph for low / medium / high volume, with a distinct `×` marker for muted or exact `0%`.
+
+Files:
+
+- `waybar/examples/pulseaudio-volume-level.jsonc`
+- `waybar/examples/pulseaudio-volume-level.css`
+- `waybar/volume-status.py`
+
+Recommended behavior:
+
+- show rough low / medium / high output volume without another percentage
+- show exact `0%` and muted as a distinct `×` state
+- keep speaker, headphone, and headset states visually distinct
+
+Dependencies:
+
+- `pactl`
+- `pamixer`
+
+Install:
+
+```bash
+mkdir -p ~/.config/waybar/scripts
+install -m755 waybar/volume-status.py ~/.config/waybar/scripts/volume-status.py
+```
+
+Replace `pulseaudio` with `custom/volume` in `modules-right`:
+
+```jsonc
+"modules-right": [
+  "custom/volume"
+]
+```
+
+Waybar snippet:
+
+```jsonc
+"custom/volume": {
+  "exec": "python3 ~/.config/waybar/scripts/volume-status.py",
+  "return-type": "json",
+  "interval": 1,
+  "on-click": "omarchy-launch-audio",
+  "on-click-right": "pamixer -t",
+  "on-scroll-up": "pamixer -i 5",
+  "on-scroll-down": "pamixer -d 5",
+  "tooltip": true
+}
+```
+
+Optional CSS:
+
+```css
+#custom-volume {
+  min-width: 28px;
+}
+```
+
+Reload Waybar:
+
+```bash
+pkill -SIGUSR2 waybar
+```
 
 ## Omarchy
 
