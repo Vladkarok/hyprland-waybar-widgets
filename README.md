@@ -5,7 +5,7 @@ Small fixes I keep around for an Omarchy setup.
 This repo currently has two buckets:
 
 - `waybar/`: custom Waybar widgets and config snippets
-- `omarchy/`: power profile fixes for Omarchy's menu and resume flow
+- `omarchy/`: power profile, brightness, and screenshot fixes for Omarchy
 
 ## Waybar
 
@@ -14,10 +14,14 @@ Included files:
 - `waybar/keyboard-layout.sh`: reliable keyboard layout indicator for Hyprland
 - `waybar/cpu-status.py`: CPU widget showing total usage % next to the icon, with per-core hover details and short load graphs
 - `waybar/volume-status.py`: volume widget showing rough level glyphs with exact 0% and muted handling
+- `waybar/brightness-status.py`: brightness widget status from the shared brightness curve helper
+- `waybar/brightness-toggle.py`: toggles the custom brightness slider
+- `waybar/brightness-slider.py`: GTK brightness slider backed by the shared brightness curve helper
 - `waybar/examples/memory-builtin.jsonc`: built-in Waybar memory widget example
 - `waybar/examples/memory-builtin.css`: matching memory widget colors
 - `waybar/examples/pulseaudio-volume-level.jsonc`: custom Waybar volume widget example showing rough volume level with compact glyphs
 - `waybar/examples/pulseaudio-volume-level.css`: optional stable width for the volume widget
+- `waybar/examples/backlight-linear.jsonc`: Waybar backlight module wired to the shared brightness curve helper
 
 ### Keyboard Layout Widget
 
@@ -204,12 +208,62 @@ Reload Waybar:
 pkill -SIGUSR2 waybar
 ```
 
+### Linear Brightness Controls
+
+Omarchy's stock brightness controls operate directly on hardware backlight
+percentages. On some panels, including `nvidia_wmi_ec_backlight`, that feels
+non-linear: the top end changes slowly and the low end changes abruptly.
+
+This repo keeps one shared gamma-corrected helper for display brightness:
+
+- `omarchy/bin/omarchy-brightness-display`
+- `waybar/brightness-status.py`
+- `waybar/brightness-slider.py`
+- `waybar/brightness-toggle.py`
+- `waybar/examples/backlight-linear.jsonc`
+
+The helper exposes linear perceived percentages and maps them to raw hardware
+backlight values with `OMARCHY_BRIGHTNESS_GAMMA` (default `2.2`). It clamps the
+minimum normal brightness to `OMARCHY_BRIGHTNESS_MIN` (default `1`) so normal
+brightness keys do not set the panel to `0%`; display-off still uses the
+separate `off` action.
+
+Install:
+
+```bash
+install -Dm755 omarchy/bin/omarchy-brightness-display ~/.local/bin/omarchy-brightness-display
+install -Dm755 waybar/brightness-status.py ~/.config/waybar/scripts/brightness-status.py
+install -Dm755 waybar/brightness-toggle.py ~/.config/waybar/scripts/brightness-toggle.py
+install -Dm755 waybar/brightness-slider.py ~/.config/waybar/scripts/brightness-slider.py
+```
+
+Waybar snippet:
+
+```jsonc
+"custom/brightness": {
+  "exec": "python3 ~/.config/waybar/scripts/brightness-status.py nvidia_wmi_ec_backlight",
+  "return-type": "json",
+  "on-click": "python3 ~/.config/waybar/scripts/brightness-toggle.py nvidia_wmi_ec_backlight",
+  "on-scroll-up": "omarchy-brightness-display +5% nvidia_wmi_ec_backlight",
+  "on-scroll-down": "omarchy-brightness-display 5%- nvidia_wmi_ec_backlight",
+  "tooltip": true,
+  "interval": 2
+}
+```
+
+Fn brightness keys already call `omarchy-brightness-display` from Omarchy's
+stock Hyprland media bindings. With `~/.local/bin` before Omarchy's bin
+directory in `~/.config/uwsm/env`, this override applies to Fn keys, Waybar
+scroll, and the slider. Change `OMARCHY_BRIGHTNESS_GAMMA` in one place to tune
+the curve everywhere.
+
 ## Omarchy
 
 Included files:
 
 - `omarchy/bin/omarchy-powerprofiles-apply`
 - `omarchy/bin/omarchy-powerprofiles-set`
+- `omarchy/bin/omarchy-brightness-display`
 - `omarchy/bin/omarchy-cmd-screenshot`
 - `omarchy/patches/omarchy-menu-power-profile.patch`
 
