@@ -74,7 +74,8 @@ class BrightnessSlider(Gtk.Window):
         box.pack_start(self.label, False, False, 0)
 
         self.minimum = min_percent(self.device)
-        adj = Gtk.Adjustment(lower=self.minimum, upper=100, step_increment=1, page_increment=5)
+        self._clamping = False
+        adj = Gtk.Adjustment(lower=0, upper=100, step_increment=1, page_increment=5)
         self.scale = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL, adjustment=adj)
         self.scale.set_digits(0)
         self.scale.set_value_pos(Gtk.PositionType.RIGHT)
@@ -91,6 +92,14 @@ class BrightnessSlider(Gtk.Window):
 
     def _on_change(self, scale: Gtk.Scale):
         value = int(scale.get_value())
+        if value < self.minimum:
+            self.label.set_text(f"Brightness: {self.minimum}%")
+            if not self._clamping:
+                self._clamping = True
+                scale.set_value(self.minimum)
+                self._clamping = False
+            return
+
         self.label.set_text(f"Brightness: {value}%")
         set_percent(self.device, value)
         self._schedule_close(delay_ms=1500)

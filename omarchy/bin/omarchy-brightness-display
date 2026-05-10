@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 
 
-GAMMA = float(os.environ.get("OMARCHY_BRIGHTNESS_GAMMA", "3.0"))
+GAMMA = float(os.environ.get("OMARCHY_BRIGHTNESS_GAMMA", "2.2"))
 MIN_LINEAR = float(os.environ.get("OMARCHY_BRIGHTNESS_MIN", "10"))
 DEFAULT_DEVICE = os.environ.get("OMARCHY_BRIGHTNESS_DEVICE", "nvidia_wmi_ec_backlight")
 STOCK_BIN = Path.home() / ".local/share/omarchy/bin"
