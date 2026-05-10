@@ -68,15 +68,23 @@ def raw_values(device: str) -> tuple[int, int]:
 
 
 def raw_to_linear(raw: int, maximum: int) -> float:
+    min_norm = max(0.0, min(0.99, MIN_LINEAR / 100.0))
     hw = max(0.0, min(1.0, raw / maximum))
-    return pow(hw, 1.0 / GAMMA) * 100.0
+    if hw <= min_norm:
+        return MIN_LINEAR
+
+    linear_norm = pow((hw - min_norm) / (1.0 - min_norm), 1.0 / GAMMA)
+    return MIN_LINEAR + linear_norm * (100.0 - MIN_LINEAR)
 
 
 def linear_to_raw(linear: float, maximum: int) -> int:
     linear = max(MIN_LINEAR, min(100.0, linear))
-    hw = pow(linear / 100.0, GAMMA)
+    min_norm = max(0.0, min(0.99, MIN_LINEAR / 100.0))
+    linear_norm = (linear - MIN_LINEAR) / (100.0 - MIN_LINEAR)
+    hw = min_norm + pow(linear_norm, GAMMA) * (1.0 - min_norm)
     raw = int(round(hw * maximum))
-    return max(1, min(maximum, raw))
+    minimum_raw = int(math.ceil(min_norm * maximum))
+    return max(minimum_raw, min(maximum, raw))
 
 
 def current_linear(device: str) -> float:
