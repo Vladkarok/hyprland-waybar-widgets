@@ -36,7 +36,7 @@ def min_percent(device: str) -> int:
     try:
         return int(sh([BRIGHTNESS_CMD, "min", device]))
     except Exception:
-        return 10
+        return 5
 
 
 def set_percent(device: str, pct: int) -> None:
