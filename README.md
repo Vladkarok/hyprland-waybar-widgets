@@ -223,8 +223,8 @@ This repo keeps one shared gamma-corrected helper for display brightness:
 - `waybar/examples/backlight-linear.jsonc`
 
 The helper exposes linear perceived percentages and maps them to raw hardware
-backlight values with `OMARCHY_BRIGHTNESS_GAMMA` (default `2.2`). It clamps the
-minimum normal brightness to `OMARCHY_BRIGHTNESS_MIN` (default `1`) so normal
+backlight values with `OMARCHY_BRIGHTNESS_GAMMA` (default `3.0`). It clamps the
+minimum normal brightness to `OMARCHY_BRIGHTNESS_MIN` (default `10`) so normal
 brightness keys do not set the panel to `0%`; display-off still uses the
 separate `off` action.
 

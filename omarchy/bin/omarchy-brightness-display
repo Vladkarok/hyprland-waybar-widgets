@@ -17,8 +17,8 @@ import sys
 from pathlib import Path
 
 
-GAMMA = float(os.environ.get("OMARCHY_BRIGHTNESS_GAMMA", "2.2"))
-MIN_LINEAR = float(os.environ.get("OMARCHY_BRIGHTNESS_MIN", "1"))
+GAMMA = float(os.environ.get("OMARCHY_BRIGHTNESS_GAMMA", "3.0"))
+MIN_LINEAR = float(os.environ.get("OMARCHY_BRIGHTNESS_MIN", "10"))
 DEFAULT_DEVICE = os.environ.get("OMARCHY_BRIGHTNESS_DEVICE", "nvidia_wmi_ec_backlight")
 STOCK_BIN = Path.home() / ".local/share/omarchy/bin"
 
@@ -162,7 +162,7 @@ def call_apple(step: str) -> None:
 
 def usage() -> None:
     print(
-        "Usage: omarchy-brightness-display <+N%|N%-|N%|raise|lower|off|on|get> [device]",
+        "Usage: omarchy-brightness-display <+N%|N%-|N%|raise|lower|off|on|get|min> [device]",
         file=sys.stderr,
     )
 
@@ -189,6 +189,10 @@ def main() -> int:
     if step == "get-raw":
         current, maximum = raw_values(device)
         print(f"{current}/{maximum}")
+        return 0
+
+    if step == "min":
+        print(int(round(MIN_LINEAR)))
         return 0
 
     if apple_focused():

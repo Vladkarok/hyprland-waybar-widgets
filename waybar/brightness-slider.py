@@ -32,6 +32,13 @@ def get_percent(device: str) -> int:
         return 50
 
 
+def min_percent(device: str) -> int:
+    try:
+        return int(sh([BRIGHTNESS_CMD, "min", device]))
+    except Exception:
+        return 10
+
+
 def set_percent(device: str, pct: int) -> None:
     try:
         subprocess.run([BRIGHTNESS_CMD, f"{int(pct)}%", device], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -66,7 +73,8 @@ class BrightnessSlider(Gtk.Window):
         self.label.set_halign(Gtk.Align.CENTER)
         box.pack_start(self.label, False, False, 0)
 
-        adj = Gtk.Adjustment(lower=1, upper=100, step_increment=1, page_increment=5)
+        self.minimum = min_percent(self.device)
+        adj = Gtk.Adjustment(lower=self.minimum, upper=100, step_increment=1, page_increment=5)
         self.scale = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL, adjustment=adj)
         self.scale.set_digits(0)
         self.scale.set_value_pos(Gtk.PositionType.RIGHT)

@@ -12,7 +12,7 @@ ICONS = ["󰃞", "󰃟", "󰃠"]
 def brightness_percent(device: str) -> int:
     try:
         out = subprocess.check_output([BRIGHTNESS_CMD, "get", device], text=True, stderr=subprocess.DEVNULL)
-        return max(1, min(100, int(out.strip())))
+        return max(0, min(100, int(out.strip())))
     except Exception:
         return 50
 
