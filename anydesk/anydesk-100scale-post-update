@@ -1,0 +1,462 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+bin_dir="${HOME}/.local/bin"
+apps_dir="${HOME}/.local/share/applications"
+anydesk_dir="${HOME}/.anydesk"
+gtk_config_home="${HOME}/.config/anydesk-gtk-dark"
+gtk_config_dir="${gtk_config_home}/gtk-3.0"
+wrapper="${bin_dir}/anydesk-100scale"
+desktop="${apps_dir}/anydesk.desktop"
+conf="${anydesk_dir}/user.conf"
+
+set_conf() {
+  local key=$1 value=$2
+
+  if grep -q "^${key}=" "$conf"; then
+    sed -i "s|^${key}=.*|${key}=${value}|" "$conf"
+  else
+    printf '%s=%s\n' "$key" "$value" >> "$conf"
+  fi
+}
+
+write_gtk_config() {
+  mkdir -p "$gtk_config_dir"
+
+  cat > "${gtk_config_dir}/settings.ini" <<'SETTINGS'
+[Settings]
+gtk-application-prefer-dark-theme=1
+gtk-theme-name=Adwaita-dark
+gtk-icon-theme-name=Papirus-Dark
+SETTINGS
+
+  cat > "${gtk_config_dir}/gtk.css" <<'CSS'
+@define-color ad_bg #191817;
+@define-color ad_bg_top #141312;
+@define-color ad_surface #33302a;
+@define-color ad_surface_soft #201e1c;
+@define-color ad_surface_high #413c34;
+@define-color ad_entry #121110;
+@define-color ad_button #2a2825;
+@define-color ad_button_hover #37342f;
+@define-color ad_button_active #423f38;
+@define-color ad_border #524e47;
+@define-color ad_border_soft #38352f;
+@define-color ad_text #d3d0ca;
+@define-color ad_text_strong #f4f2ee;
+@define-color ad_muted #918d85;
+@define-color ad_red #ff3f39;
+@define-color ad_red_hover #ff5a54;
+@define-color ad_green #2f9f47;
+@define-color ad_blue #4d79a8;
+
+* {
+  background-image: none;
+  text-shadow: none;
+  box-shadow: none;
+  -gtk-icon-shadow: none;
+  -gtk-icon-effect: none;
+  outline-color: @ad_border;
+}
+
+window,
+dialog,
+.background {
+  background-color: @ad_bg;
+  color: @ad_text;
+}
+
+popover,
+menu,
+menubar,
+toolbar,
+notebook,
+box,
+grid,
+paned,
+viewport,
+scrolledwindow,
+treeview,
+list,
+row {
+  background-color: @ad_bg;
+  color: @ad_text;
+}
+
+toolbar,
+menubar,
+notebook header {
+  background-color: @ad_bg_top;
+}
+
+frame,
+dialog,
+popover {
+  background-color: @ad_surface;
+  color: @ad_text;
+  border: 1px solid @ad_border;
+}
+
+frame > border {
+  border-color: @ad_border;
+}
+
+separator {
+  background-color: @ad_border;
+  color: @ad_border;
+  min-height: 1px;
+  min-width: 1px;
+}
+
+label,
+cell,
+text,
+treeview.view {
+  color: @ad_text;
+  background-color: transparent;
+}
+
+label:disabled,
+*:disabled {
+  color: @ad_muted;
+}
+
+*:link,
+label:link,
+button.link,
+button.link label {
+  color: @ad_red_hover;
+}
+
+*:visited,
+label:visited {
+  color: @ad_red;
+}
+
+entry,
+spinbutton,
+combobox,
+textview,
+searchentry {
+  background-color: @ad_entry;
+  color: @ad_text_strong;
+  border: 1px solid @ad_border;
+  border-radius: 0;
+  caret-color: @ad_text_strong;
+}
+
+entry:focus,
+spinbutton:focus,
+combobox:focus,
+textview:focus,
+searchentry:focus {
+  border-color: #d6dbd6;
+}
+
+button,
+togglebutton,
+modelbutton {
+  background-color: @ad_button;
+  color: @ad_text_strong;
+  border: 1px solid @ad_border_soft;
+  border-radius: 0;
+  box-shadow: none;
+  text-shadow: none;
+}
+
+button *,
+togglebutton *,
+modelbutton *,
+button image,
+togglebutton image,
+modelbutton image,
+button label,
+togglebutton label,
+modelbutton label {
+  background-color: transparent;
+  color: @ad_text_strong;
+}
+
+button:hover,
+togglebutton:hover,
+modelbutton:hover {
+  background-color: @ad_button_hover;
+  border-color: @ad_border;
+}
+
+button:active,
+button:checked,
+togglebutton:active,
+togglebutton:checked,
+modelbutton:active {
+  background-color: @ad_button_active;
+  border-color: @ad_red;
+}
+
+button.green {
+  background-color: @ad_green;
+  color: #ffffff;
+  border-color: @ad_green;
+}
+
+button.red,
+button.lightred {
+  background-color: @ad_red;
+  color: #ffffff;
+  border-color: @ad_red;
+}
+
+button.blue,
+button.lightblue {
+  background-color: @ad_blue;
+  color: #ffffff;
+  border-color: @ad_blue;
+}
+
+button.grey,
+button.lightgrey,
+button.white {
+  background-color: @ad_button;
+  color: @ad_text_strong;
+  border-color: @ad_border_soft;
+}
+
+button:disabled,
+togglebutton:disabled,
+modelbutton:disabled {
+  background-color: @ad_surface_soft;
+  color: @ad_muted;
+  border-color: #2f322e;
+}
+
+notebook tab {
+  background-color: @ad_bg_top;
+  color: @ad_muted;
+  border: 0;
+}
+
+notebook tab:checked {
+  background-color: @ad_surface_soft;
+  color: @ad_text_strong;
+  border-bottom: 2px solid @ad_red;
+}
+
+treeview.view,
+list row {
+  background-color: @ad_bg;
+  color: @ad_text;
+  border-color: @ad_border_soft;
+}
+
+treeview.view:selected,
+list row:selected {
+  background-color: @ad_surface_high;
+  color: @ad_text_strong;
+}
+
+tooltip {
+  background-color: #151613;
+  color: @ad_text_strong;
+  border: 1px solid @ad_border;
+}
+
+scrollbar,
+scrollbar trough {
+  background-color: #10110f;
+}
+
+scrollbar slider {
+  background-color: #4b4e48;
+  border-radius: 0;
+  min-width: 8px;
+  min-height: 8px;
+}
+
+/* AnyDesk injects classed rules for some widgets; these selectors are more
+   specific while staying valid GTK3 CSS. */
+window *:link,
+window label:link,
+window button.link,
+window button.link label {
+  color: @ad_red_hover;
+}
+
+window button,
+window togglebutton,
+window modelbutton,
+window toolbar button,
+window box button,
+window grid button,
+window button.grey,
+window button.lightgrey,
+window button.white {
+  background-color: @ad_button;
+  color: @ad_text_strong;
+  border-color: @ad_border_soft;
+}
+
+window button:hover,
+window togglebutton:hover,
+window modelbutton:hover {
+  background-color: @ad_button_hover;
+  border-color: @ad_border;
+}
+
+window button:active,
+window button:checked,
+window togglebutton:active,
+window togglebutton:checked,
+window modelbutton:active {
+  background-color: @ad_button_active;
+  border-color: @ad_red;
+}
+
+window button.green {
+  background-color: @ad_green;
+  color: #ffffff;
+  border-color: @ad_green;
+}
+
+window button.red,
+window button.lightred {
+  background-color: @ad_red;
+  color: #ffffff;
+  border-color: @ad_red;
+}
+
+window button.blue,
+window button.lightblue {
+  background-color: @ad_blue;
+  color: #ffffff;
+  border-color: @ad_blue;
+}
+
+window .link,
+window .link label {
+  color: @ad_red_hover;
+}
+
+window .button,
+window .image-button,
+window .text-button,
+window .grey,
+window .lightgrey,
+window .white {
+  background-image: none;
+  background-color: @ad_button;
+  color: @ad_text_strong;
+  border-color: @ad_border_soft;
+}
+
+window .button:hover,
+window .image-button:hover,
+window .text-button:hover,
+window .grey:hover,
+window .lightgrey:hover,
+window .white:hover {
+  background-color: @ad_button_hover;
+  border-color: @ad_border;
+}
+
+window .button:active,
+window .button:checked,
+window .image-button:active,
+window .image-button:checked,
+window .text-button:active,
+window .text-button:checked,
+window .grey:active,
+window .grey:checked,
+window .lightgrey:active,
+window .lightgrey:checked,
+window .white:active,
+window .white:checked {
+  background-color: @ad_button_active;
+  border-color: @ad_red;
+}
+
+window button *,
+window togglebutton *,
+window modelbutton *,
+window button image,
+window togglebutton image,
+window modelbutton image,
+window button label,
+window togglebutton label,
+window modelbutton label {
+  background-color: transparent;
+  color: @ad_text_strong;
+}
+CSS
+}
+
+mkdir -p "$bin_dir" "$apps_dir" "$anydesk_dir"
+touch "$conf"
+set_conf ad.ui.scale 100
+set_conf ad.ui.theme 1
+write_gtk_config
+
+cat > "$wrapper" <<'WRAPPER'
+#!/usr/bin/env bash
+set -euo pipefail
+
+conf="${HOME}/.anydesk/user.conf"
+gtk_config_home="${HOME}/.config/anydesk-gtk-dark"
+
+set_conf() {
+  local key=$1 value=$2
+
+  if grep -q "^${key}=" "$conf"; then
+    sed -i "s|^${key}=.*|${key}=${value}|" "$conf"
+  else
+    printf '%s=%s\n' "$key" "$value" >> "$conf"
+  fi
+}
+
+mkdir -p "${HOME}/.anydesk"
+touch "$conf"
+set_conf ad.ui.scale 100
+set_conf ad.ui.theme 1
+
+export XDG_CONFIG_HOME="$gtk_config_home"
+export GTK_THEME=Adwaita-dark
+export GDK_BACKEND=x11
+export GDK_SCALE=1
+export GDK_DPI_SCALE=1
+export QT_QPA_PLATFORM=xcb
+export QT_AUTO_SCREEN_SCALE_FACTOR=0
+export QT_ENABLE_HIGHDPI_SCALING=0
+export QT_SCALE_FACTOR=1
+
+# Prevent toolkit fallback to Wayland when AnyDesk changes internals.
+unset WAYLAND_DISPLAY
+
+exec /usr/bin/anydesk "$@"
+WRAPPER
+chmod 755 "$wrapper"
+
+cat > "$desktop" <<DESKTOP
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=AnyDesk
+GenericName=AnyDesk
+X-GNOME-FullName=AnyDesk
+Exec=${wrapper} %u
+Icon=anydesk
+Terminal=false
+TryExec=/usr/bin/anydesk
+Categories=Network;GTK;RemoteAccess;
+MimeType=x-scheme-handler/anydesk;
+StartupNotify=false
+Name[de_DE]=AnyDesk
+X-Omarchy-User-Override=100-percent-scale-dark
+DESKTOP
+chmod 644 "$desktop"
+
+if command -v update-desktop-database >/dev/null 2>&1; then
+  update-desktop-database "$apps_dir" >/dev/null 2>&1 || true
+fi
+
+if command -v xdg-mime >/dev/null 2>&1; then
+  xdg-mime default anydesk.desktop x-scheme-handler/anydesk >/dev/null 2>&1 || true
+fi
