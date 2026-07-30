@@ -2,21 +2,32 @@
 
 Small fixes I keep around for an Omarchy setup.
 
-This repo currently has two buckets:
+This repo currently has three buckets:
 
 - `waybar/`: custom Waybar widgets and config snippets
 - `omarchy/`: power profile, brightness, and screenshot fixes for Omarchy
+- `docs/`: notes about this setup
+
+See [docs/customizations.md](docs/customizations.md) for a full inventory of what is
+customized against stock Omarchy and why — written to support wiping back to defaults
+on the Omarchy 4.0 upgrade and re-adding tweaks deliberately.
 
 ## Waybar
 
 Included files:
 
 - `waybar/keyboard-layout.sh`: reliable keyboard layout indicator for Hyprland
+- `waybar/calendar-toggle.py`: Waybar calendar icon with a small GTK popup
+- `waybar/screen-keyboard.sh`: manual Waybar/Hyprland toggle for `wvkbd`
 - `waybar/cpu-status.py`: CPU widget showing total usage % next to the icon, with per-core hover details and short load graphs
 - `waybar/volume-status.py`: volume widget showing rough level glyphs with exact 0% and muted handling
 - `waybar/brightness-status.py`: brightness widget status from the shared brightness curve helper
 - `waybar/brightness-toggle.py`: toggles the custom brightness slider
 - `waybar/brightness-slider.py`: GTK brightness slider backed by the shared brightness curve helper
+- `waybar/examples/calendar-toggle.jsonc`: Waybar custom module for a popup calendar icon
+- `waybar/examples/calendar-toggle.css`: matching calendar module spacing and active color
+- `waybar/examples/screen-keyboard.jsonc`: Waybar custom module for manually toggling `wvkbd`
+- `waybar/examples/screen-keyboard.css`: matching screen keyboard module spacing and active color
 - `waybar/examples/memory-builtin.jsonc`: built-in Waybar memory widget example
 - `waybar/examples/memory-builtin.css`: matching memory widget colors
 - `waybar/examples/pulseaudio-volume-level.jsonc`: custom Waybar volume widget example showing rough volume level with compact glyphs
@@ -70,6 +81,139 @@ Optional CSS:
 #custom-language.ua {
   color: #f9e2af;
 }
+```
+
+### Calendar Toggle
+
+This adds a Waybar calendar icon that opens a small GTK calendar popup. It is
+self-contained and does not need `gsimplecal`, `yad`, or another external
+calendar app.
+
+Files:
+
+- `waybar/calendar-toggle.py`
+- `waybar/examples/calendar-toggle.jsonc`
+- `waybar/examples/calendar-toggle.css`
+
+Dependencies:
+
+- `python3`
+- `python-gobject`
+- GTK 3
+- `pgrep`
+- `pkill`
+
+Install:
+
+```bash
+mkdir -p ~/.config/waybar/scripts
+install -m755 waybar/calendar-toggle.py ~/.config/waybar/scripts/calendar-toggle.py
+```
+
+Add `custom/calendar` to `modules-center`, for example next to the clock:
+
+```jsonc
+"modules-center": [
+  "clock",
+  "custom/calendar",
+  "custom/weather"
+]
+```
+
+Waybar snippet:
+
+```jsonc
+"custom/calendar": {
+  "exec": "python3 ~/.config/waybar/scripts/calendar-toggle.py status",
+  "return-type": "json",
+  "format": "{}",
+  "tooltip": true,
+  "on-click": "python3 ~/.config/waybar/scripts/calendar-toggle.py toggle",
+  "signal": 12,
+  "interval": 60
+}
+```
+
+Optional CSS:
+
+```css
+#custom-calendar {
+  min-width: 12px;
+  margin-left: 7.5px;
+  margin-right: 7.5px;
+}
+
+#custom-calendar.active {
+  color: #a55555;
+}
+```
+
+### Screen Keyboard Toggle
+
+This adds a manual Waybar icon for toggling `wvkbd`. The widget reports active
+while the keyboard process is running, so it uses start/stop instead of
+signal-based hide/show.
+
+Files:
+
+- `waybar/screen-keyboard.sh`
+- `waybar/examples/screen-keyboard.jsonc`
+- `waybar/examples/screen-keyboard.css`
+
+Dependencies:
+
+- `wvkbd`
+- `pgrep`
+- `pkill`
+
+Install:
+
+```bash
+mkdir -p ~/.config/waybar/scripts
+install -m755 waybar/screen-keyboard.sh ~/.config/waybar/scripts/screen-keyboard.sh
+```
+
+Add `custom/screen-keyboard` to `modules-right`, for example next to the
+language indicator:
+
+```jsonc
+"modules-right": [
+  "custom/language",
+  "custom/screen-keyboard"
+]
+```
+
+Waybar snippet:
+
+```jsonc
+"custom/screen-keyboard": {
+  "exec": "~/.config/waybar/scripts/screen-keyboard.sh status",
+  "return-type": "json",
+  "format": "{}",
+  "tooltip": true,
+  "on-click": "~/.config/waybar/scripts/screen-keyboard.sh toggle",
+  "signal": 11,
+  "interval": 10
+}
+```
+
+Optional CSS:
+
+```css
+#custom-screen-keyboard {
+  min-width: 12px;
+  margin-right: 12px;
+}
+
+#custom-screen-keyboard.active {
+  color: #a55555;
+}
+```
+
+Optional Hyprland binding:
+
+```ini
+bindd = SUPER ALT, K, Toggle screen keyboard, exec, ~/.config/waybar/scripts/screen-keyboard.sh toggle
 ```
 
 ### CPU Hover Widget
@@ -264,8 +408,8 @@ Included files:
 - `omarchy/bin/omarchy-powerprofiles-apply`
 - `omarchy/bin/omarchy-powerprofiles-set`
 - `omarchy/bin/omarchy-brightness-display`
-- `omarchy/bin/omarchy-cmd-screenshot`
 - `omarchy/patches/omarchy-menu-power-profile.patch`
+- `satty/config.toml`: enables Satty auto-close after save/copy (0.21.x+)
 
 ### Power Profile Fixes
 
@@ -301,70 +445,58 @@ Notes:
 - The governor recovery path uses `sudo -n` when it is not already running as root.
 - The helper only resets governors when a non-`performance` profile should be active and the kernel is still pinned to `performance`.
 
-### Screenshot: Save-As Directory Memory + Auto-Close
+### Screenshot: Satty Save-As Defaults + Auto-Close
 
-Customized fork of Omarchy's `omarchy-cmd-screenshot`. Two quality-of-life
-fixes for the satty editor path; the rest of the script is unchanged from
-upstream.
+**Resolved upstream — no local fork needed as of Satty 0.21.0.**
 
-**1. Remember the last "Save As" directory.**
+The Save As filename prefill and remembered-directory behavior were merged into
+Satty itself ([gabm/satty#499](https://github.com/gabm/satty/pull/499),
+released in 0.21.0) and reached Arch `extra` in 0.21.1-1. If you are on Satty
+≥ 0.21.0, drop the old custom scripts and use stock Omarchy plus one config
+line.
 
-The default GTK4 file chooser opens in `recent`, which means every "Save As"
-starts somewhere unrelated to where you last saved a screenshot. This fork:
+**1. Save As defaults (native).**
 
-- Reads the last directory from `~/.config/omarchy/screenshot_last_dir`.
-- Sets `org.gtk.gtk4.Settings.FileChooser startup-mode 'cwd'` and `cd`s into
-  that directory before launching satty, so the file chooser opens there.
-- After satty exits, restores `startup-mode 'recent'` and scans
-  `~/.local/share/recently-used.xbel` for an image file saved during this
-  invocation. If found, its directory is written back to the state file.
+Stock Omarchy already passes `--output-filename` to Satty, which is all the
+merged feature needs. Satty now:
 
-**2. Auto-close satty after save / copy / save-as.**
+- Prefills the Save As filename from `--output-filename`.
+- Remembers the last accepted Save As directory, stored in the XDG state dir
+  (`~/.local/state/satty/save_as_last_dir`), and reopens there next time.
 
-Satty 0.20.1 split the old `--early-exit` behavior into separate flags. This
-fork passes both `--early-exit` and `--early-exit-save-as`, and changes
-`--actions-on-enter` from `save-to-clipboard` to `save-to-clipboard,exit`
-as a belt-and-suspenders for the Enter path.
+**2. Auto-close after save / copy / save-as.**
 
-Install:
+0.21.0 merged the old `--early-exit` / `--early-exit-save-as` flags into a
+single `--early-exit [copy|save|save-as|all]` (bare = `all`). Stock Omarchy
+does not pass it on the CLI, so set it once in `satty/config.toml`:
+
+```toml
+[general]
+early-exit = true
+```
+
+Install (config only — the screenshot script is stock Omarchy):
 
 ```bash
-install -Dm755 omarchy/bin/omarchy-cmd-screenshot ~/.local/bin/omarchy-cmd-screenshot
+install -Dm644 satty/config.toml ~/.config/satty/config.toml
 ```
 
-The install path is `~/.local/bin/`, not `~/.local/share/omarchy/bin/`. This
-is intentional: `~/.local/bin/` shadows the Omarchy command on `PATH`, so the
-override survives `omarchy-update` instead of being overwritten on every
-update.
+Migration from the old local build:
 
-**Important — make sure `~/.local/bin` is on Hyprland's PATH.** Omarchy's
-`~/.config/uwsm/env` ships with:
-
-```sh
-export PATH=$OMARCHY_PATH/bin/:$PATH
+```bash
+rm -f ~/.local/bin/satty ~/.local/bin/omarchy-capture-screenshot
+rm -f ~/.config/satty/save_as_last_dir   # 0.21.x uses ~/.local/state/satty/
 ```
 
-That prepends the omarchy bin dir but does *not* add `~/.local/bin`, which
-also is not on the default systemd user PATH. Without this, `which
-omarchy-cmd-screenshot` in your shell will return the override but Hyprland
-keybindings (PRINT etc.) will still execute the omarchy-shipped script.
-
-Patch `~/.config/uwsm/env`:
-
-```sh
-export PATH=$HOME/.local/bin:$OMARCHY_PATH/bin/:$PATH
-```
-
-Relaunch Hyprland (logout / `uwsm stop`) for the change to take effect.
+The removed `--early-exit-save-as` flag means the old wrapper errors against
+0.21.x, so this migration is required, not optional.
 
 Notes:
 
-- State file: `~/.config/omarchy/screenshot_last_dir`. Safe to delete to
-  reset back to `~/Pictures` (or whatever `OMARCHY_SCREENSHOT_DIR` is set to).
-- The directory tracking depends on GTK writing to `recently-used.xbel`,
-  which it does for the standard GTK4 file chooser.
-- This is a candidate for an upstream PR. Earlier related PRs (#2421, #3226)
-  are stale; the save-as-directory behavior in particular is fresh ground.
+- Historical: this started as a shell wrapper (`omarchy-cmd-screenshot`, using
+  a `gsettings` filechooser hack) and then a patched Satty build. Both are
+  retired now that the behavior is upstream.
+- Earlier stale PRs on this topic: #2421, #3226.
 
 ## Tested On
 
