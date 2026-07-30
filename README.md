@@ -2,10 +2,11 @@
 
 Small fixes I keep around for an Omarchy setup.
 
-This repo currently has three buckets:
+This repo currently has four buckets:
 
 - `waybar/`: custom Waybar widgets and config snippets
 - `omarchy/`: power profile, brightness, and screenshot fixes for Omarchy
+- `hypr/`: Hyprland config files with no upstream Omarchy equivalent
 - `docs/`: notes about this setup
 
 See [docs/customizations.md](docs/customizations.md) for a full inventory of what is
@@ -497,6 +498,67 @@ Notes:
   a `gsettings` filechooser hack) and then a patched Satty build. Both are
   retired now that the behavior is upstream.
 - Earlier stale PRs on this topic: #2421, #3226.
+
+## Hyprland
+
+Config files that have **no upstream Omarchy equivalent**. Omarchy's
+`omarchy-refresh-hyprland` can restore any of its own defaults, but it knows
+nothing about these two, so this is their only backup.
+
+Both are sourced from `~/.config/hypr/hyprland.conf`, after the Omarchy defaults
+so they take precedence:
+
+```
+source = ~/.config/hypr/envs.conf
+source = ~/.config/hypr/windows.conf
+```
+
+### `hypr/windows.conf`
+
+Global window defaults plus per-app rules.
+
+The two global rules at the top open new windows floating and disable all
+transparency:
+
+```
+windowrule = float on, match:class .*
+windowrule = opacity 1 1, match:class .*
+```
+
+The opacity rule is needed because Omarchy does not set
+`decoration:active_opacity` (it is already `1.0`) — it tags every window with
+`default-opacity` in `default/hypr/windows.conf` and then applies
+`opacity 0.985 0.96` to that tag. The blanket rule overrides that and the
+per-app browser rules.
+
+**Rule order matters.** Hyprland applies matching rules in sequence, so the
+blanket `float on` must stay above the per-app `tile on` rules. That is what
+keeps the autostart chat apps tiled while everything else floats.
+
+The per-app rules pin chat apps to workspaces 1 and 2, put Last War and
+xclicker on workspaces 5 and 15, and disable blur/shadow on `steam_proton` for
+performance. The app classes were found by trial and error and are not
+guessable — Whatsie, for example, reports `com.ktechpit.whatsie`.
+
+### `hypr/envs.conf`
+
+`SDL_VIDEODRIVER=wayland` and a custom `OMARCHY_SCREENSHOT_DIR`.
+
+Note Omarchy 4.0 ships a commented `OMARCHY_SCREENSHOT_DIR` slot in
+`uwsm/default` — prefer that over a separate file when migrating.
+
+### Install
+
+```bash
+cp hypr/windows.conf hypr/envs.conf ~/.config/hypr/
+hyprctl reload
+```
+
+Then confirm both are sourced in `~/.config/hypr/hyprland.conf`.
+
+Omarchy 4.0 replaces this `.conf` format with Lua and cannot source `.conf`
+files from a `.lua` entry point, so these need translating rather than copying.
+See [docs/customizations.md](docs/customizations.md).
 
 ## Tested On
 
