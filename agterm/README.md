@@ -33,6 +33,7 @@ libepoxy 1.5.10. `ldd` against the bundled `lib/` resolves everything.
 - `~/.local/bin/agtermctl` -> `.../agterm-linux/bin/agtermctl`
 - `~/.local/share/icons/hicolor/256x256/apps/io.github.melonamin.agterm.png`
   (the shipped pixmap is 1254x1254, resized with `magick`)
+- `~/.local/share/pixmaps/io.github.melonamin.agterm.png` (full-size fallback copy)
 - `~/.local/share/applications/io.github.melonamin.agterm.desktop`
 
 The repo copy of the desktop entry is `agterm/io.github.melonamin.agterm.desktop`.
@@ -50,10 +51,26 @@ Two changes from the desktop file shipped inside the tarball:
   Wayland app_id, so Hyprland reports the argv[0] basename. Verified with
   `hyprctl clients -j`. Use `agterm-linux.bin` for any Hyprland window rule too.
 
+## Do Not Add index.theme to the User hicolor Dir
+
 `gtk4-update-icon-cache` refuses to build a cache for `~/.local/share/icons/hicolor`
-("generated cache was invalid"), so there is no `icon-theme.cache` there. Harmless —
-GTK falls back to scanning the directory, and a minimal `index.theme` was added so the
-directory is recognised as a theme.
+("generated cache was invalid"), so there is no `icon-theme.cache` there. That is
+harmless and needs no fix — GTK scans the directory directly.
+
+Do **not** "fix" it by dropping an `index.theme` into `~/.local/share/icons/hicolor/`.
+Doing that broke every icon in agterm — the whole UI rendered as red `image-missing`
+placeholders. GTK searches user data dirs before system ones, so a user-level
+`hicolor/index.theme` shadows `/usr/share/icons/hicolor/index.theme`; the shadowing
+copy declares only the handful of directories that exist locally, which truncates the
+fallback chain that `Papirus-Dark` (`Inherits=breeze-dark,hicolor`) terminates in.
+Every symbolic icon then fails to resolve.
+
+Confirmed by A/B screenshot: file absent = icons render, file present = red boxes.
+The user hicolor dir now contains only size subdirectories and no `index.theme`.
+
+Icon lookup verified via `Gtk.IconTheme.has_icon` under the active `Papirus-Dark`
+theme: `io.github.melonamin.agterm`, `list-add-symbolic`, and `view-more-symbolic`
+all resolve.
 
 ## Verification
 
