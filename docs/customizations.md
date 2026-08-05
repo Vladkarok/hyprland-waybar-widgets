@@ -243,6 +243,32 @@ For the v4 port this becomes roughly
 `o.window("org.telegram.desktop", { group = "barred" })` — check the spelling
 against `default/hypr/helpers.lua`, that form is unverified.
 
+**Telegram viewer float/fit** (added 2026-08-05) — cosmetic, re-add only if the
+tiled viewer bothers you:
+
+```
+windowrule = float on,      ... match:title ^(Media viewer)$
+windowrule = size 1440 900, ... match:title ^(Media viewer)$
+windowrule = center on,     ... match:title ^(Media viewer)$
+```
+
+Makes the image viewer open floating, centred, at 90% of the screen instead of
+tiling into the layout. Matched on `title` because the viewer shares the chat
+window's class — `Media viewer` is the **English-UI** title, so the rules stop
+matching if the Telegram interface language is changed.
+
+Two things worth carrying forward:
+
+- **Percentages do not work.** `size 90% 90%` is silently ignored by Hyprland
+  0.56.1 under the `match:` rule syntax; only absolute pixels apply. Verified by
+  A/B — `50% 50%` left a probe window at its own size, `1440 900` applied
+  exactly. So `1440 900` is tied to this display's 1600x1000 logical area
+  (2560x1600 @ scale 1.6) and needs recalculating for another monitor.
+- **Do not test window sizing with kitty.** Its `remember_window_size` default
+  makes it reopen at its last size regardless of the rule, which looks exactly
+  like a working rule and wasted a while here. Use a neutral window, or pass
+  `-o remember_window_size=no`.
+
 ### Autostart (`hypr/autostart.conf`)
 
 Six chat apps launched with `sleep 3` onto silent workspaces 1 and 2, plus
