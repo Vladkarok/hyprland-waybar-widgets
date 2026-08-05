@@ -1,0 +1,13 @@
+alias vim="nvim"
+alias ls="eza --icons=always"
+alias ll="eza -l --icons=always"
+alias la="eza -la --icons=always"
+alias cat="bat -p"
+alias br="broot"
+alias 'ipa'='ip -c a'
+alias 'ipr'='ip -c route'
+alias 'se'='sudoedit'
+
+# --- Codex accounts -----------------------------------------------------
+alias codex-main='CODEX_HOME="/home/vladkarok/.codex-main" codex'
+alias codex-second='CODEX_HOME="/home/vladkarok/.codex-second" codex'

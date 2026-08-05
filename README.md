@@ -2,11 +2,12 @@
 
 Small fixes I keep around for an Omarchy setup.
 
-This repo currently has four buckets:
+This repo currently has five buckets:
 
 - `waybar/`: custom Waybar widgets and config snippets
 - `omarchy/`: power profile, brightness, and screenshot fixes for Omarchy
 - `hypr/`: Hyprland config files with no upstream Omarchy equivalent
+- `shell/`: zsh config and Powerlevel10k prompt
 - `docs/`: notes about this setup
 
 See [docs/customizations.md](docs/customizations.md) for a full inventory of what is
@@ -559,6 +560,56 @@ Then confirm both are sourced in `~/.config/hypr/hyprland.conf`.
 Omarchy 4.0 replaces this `.conf` format with Lua and cannot source `.conf`
 files from a `.lua` entry point, so these need translating rather than copying.
 See [docs/customizations.md](docs/customizations.md).
+
+## Shell
+
+Zsh setup with a Powerlevel10k prompt. Stored without the leading dot so the
+files stay visible; the mapping is:
+
+| repo | installed as |
+| --- | --- |
+| `shell/zshrc` | `~/.zshrc` |
+| `shell/zsh_aliases` | `~/.zsh_aliases` |
+| `shell/p10k.zsh` | `~/.p10k.zsh` |
+
+### Prompt
+
+Powerlevel10k in Pure style (`p10k-pure.zsh`, snazzy colors, 2-line, transient
+prompt, instant prompt). `.zshrc` keeps three ordering rules that matter:
+
+- the instant-prompt block must stay at the **top** of the file
+- `zsh-syntax-highlighting` must be sourced **last** among plugins
+- the prompt theme is sourced **last** overall, and keybindings come after the
+  plugins so they are not overridden
+
+### Not self-contained
+
+These files only configure things — they do not install them. A fresh machine
+needs the plugins and theme checked out under `~/.oh-my-zsh/custom/` first:
+
+- `plugins/zsh-autosuggestions`
+- `plugins/zsh-syntax-highlighting`
+- `themes/powerlevel10k`
+
+`.zshrc` also assumes these are on PATH and will error noisily without them:
+`zoxide`, `fzf`, `fnm`, plus `eza`, `bat`, `broot`, `nvim` for the aliases.
+Some blocks are installer-managed (grok, agterm agent-status, the Oracle CLI
+completion, and the `~/.local/bin/env` line from the uv installer) and will be
+rewritten by those tools rather than by hand.
+
+### Install
+
+```bash
+cp shell/zshrc ~/.zshrc
+cp shell/zsh_aliases ~/.zsh_aliases
+cp shell/p10k.zsh ~/.p10k.zsh
+exec zsh
+```
+
+Run `p10k configure` to regenerate the prompt from scratch instead.
+
+Note: `~/.config/starship.toml` also exists on this system but nothing sources
+it — a leftover from before the switch to Powerlevel10k. It is not tracked here.
 
 ## Tested On
 
