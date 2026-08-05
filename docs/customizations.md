@@ -215,6 +215,34 @@ Then about 30 per-app rules, in three groups:
 Whatsie's actual class is `com.ktechpit.whatsie`, not anything guessable). That
 research is the valuable part — keep the file even if the layout choices change.
 
+**Telegram group fix** (added 2026-08-05) — re-apply this one rather than
+re-deciding it, it fixes a real bug:
+
+```
+windowrule = group barred, match:class ^(org\.telegram\.desktop|telegram-desktop|TelegramDesktop)$
+```
+
+Telegram's image viewer is a **separate window with the same class** as the chat
+window, so the `tile on` rule above matches it and it opens tiled. Hyprland's
+`group:auto_group = 1` (the default) then absorbs any new tiled window into the
+focused group. Fullscreen a picture and close it, and the fullscreen state is
+left on the surviving group member — the chat window looks stuck in Super+F
+until you toggle it off. It fires even when the group holds only Telegram,
+because the viewer briefly makes it a two-window group.
+
+Verified two ways: `barred` stops the viewer joining the group, and Super+G
+still groups Telegram by hand, so the grouping workflow is unaffected.
+
+Upstream status as of 2026-08-05: **not fixed**. Neither Omarchy 3.8.4 nor the
+4.0 alpha sets `auto_group`, and neither uses `barred` anywhere — the shipped
+`apps/telegram.{conf,lua}` only sets `focus_on_activate = false`, for an
+unrelated problem. The underlying defect (fullscreen surviving on the remaining
+group member) is Hyprland's, not Omarchy's, so expect to keep carrying this.
+
+For the v4 port this becomes roughly
+`o.window("org.telegram.desktop", { group = "barred" })` — check the spelling
+against `default/hypr/helpers.lua`, that form is unverified.
+
 ### Autostart (`hypr/autostart.conf`)
 
 Six chat apps launched with `sleep 3` onto silent workspaces 1 and 2, plus
