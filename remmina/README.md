@@ -1,0 +1,70 @@
+# Remmina on Omarchy
+
+RDP against a Wayland/Hyprland host on a fractionally scaled panel (eDP-2, 2560x1600,
+`scale=1.6`). Two problems worth writing down: Alt+Tab never reaching the guest, and a
+blurry, oversized remote desktop.
+
+## Alt+Tab (and other guest shortcuts)
+
+Not a Remmina problem. Omarchy binds `ALT, TAB` to `cyclenext`
+(`~/.local/share/omarchy/default/hypr/bindings/tiling.conf`), and Hyprland consumes a
+bound key before the client ever sees it — no keyboard grab, on X11 or Wayland, can win
+against that.
+
+Fix is a Hyprland passthrough submap, which disables every bind while active. See the
+block at the end of [../hypr/bindings.conf](../hypr/bindings.conf):
+
+```
+bind = SUPER, F12, submap, passthrough
+submap = passthrough
+bind = SUPER, F12, submap, reset
+submap = reset
+```
+
+`SUPER + F12` toggles it both ways; `hyprctl submap` shows the current state.
+
+Only one bind per key fires inside a submap. Adding a second one (a `notify-send`, say)
+on the same key shadows the `submap, reset` and strands you in passthrough with every
+hotkey dead.
+
+## Sharpness: run it on XWayland, not Wayland
+
+Counterintuitive on this setup, but measured: XWayland is ~9x sharper.
+
+| launch | sharpness (variance of Laplacian, same crop) |
+|---|---|
+| Wayland native, `GDK_SCALE=1` | 277 |
+| XWayland, `GDK_SCALE=1 GDK_DPI_SCALE=1` | 2520 |
+
+Omarchy sets `xwayland { force_zero_scaling = true }`
+(`~/.local/share/omarchy/default/hypr/envs.conf`), so XWayland surfaces render at real
+device pixels and the compositor never upscales them — 1:1. Remmina on native Wayland
+gets the opposite: GTK3 has no `wp_fractional_scale_v1` support (GTK4 4.14+ only), so it
+draws at an integer scale and the compositor resamples down to 1.6.
+
+Two traps that produce a huge, soft picture:
+
+- `env = GDK_SCALE,2` in `hypr/monitors.conf` is inherited by everything launched from a
+  shell or the app launcher. Combined with compositor scaling it applies scale twice.
+  The desktop file below pins `GDK_SCALE=1`.
+- Passing `/scale-desktop:` and `/scale-device:` in the profile's extra FreeRDP
+  arguments duplicates what `rdp_desktopScaleFactor` / `rdp_deviceScaleFactor` already
+  send, and FreeRDP then ignores both. Leave `freerdp_params` empty. RDP only accepts
+  100, 140 and 180 — intermediate values are silently dropped.
+
+Size in the guest belongs to `rdp_desktopScaleFactor` (140 here): real Windows DPI, so
+it stays pixel-sharp, unlike stretching the remote framebuffer. Windows applies it at
+session start — a persisted session needs a logoff, not a disconnect.
+
+## Files
+
+- `org.remmina.Remmina.desktop` → `~/.local/share/applications/` — pins the launch
+  environment (`GDK_BACKEND=x11 GDK_SCALE=1 GDK_DPI_SCALE=1 GTK_THEME=Adwaita-dark`)
+- `remmina.pref.example` → `~/.config/remmina/remmina.pref` — `secret` and
+  `unlock_password` blanked
+- `rdp-profile.example.remmina` → `~/.local/share/remmina/` — credentials, host and
+  domain blanked
+
+Remmina rewrites both files when it exits, so edit them with Remmina closed or the
+change is lost. `keyboard_grab` in particular is better toggled from the session toolbar
+than from the file.

@@ -285,6 +285,7 @@ SUPER + SHIFT + T   Activity (btop)
 SUPER + period      Emoji picker (emote)
 SUPER + ALT + B     Next wallpaper
 SUPER + ALT + K     Toggle screen keyboard
+SUPER + F12         Toggle Hyprland passthrough submap (all binds off, for RDP/VMs)
 ```
 
 Also `$terminal` / `$browser` variables, a changed Tmux binding (`tmux new` rather
@@ -293,6 +294,20 @@ Google Photos + Typora bindings removed.
 
 **Note:** v4 replaces `bindd =` with `o.bind("SUPER + SHIFT + T", "Activity", {...})`.
 These need translating, not copying.
+
+---
+
+### Remmina RDP
+
+Passthrough submap in `hypr/bindings.conf` (guest never sees Alt+Tab otherwise — Omarchy
+binds it to `cyclenext`), plus a `~/.local/share/applications/` desktop file pinning
+`GDK_BACKEND=x11 GDK_SCALE=1`. XWayland is the sharp path here, not Wayland: Omarchy's
+`xwayland:force_zero_scaling` gives real device pixels, while GTK3 on Wayland gets
+resampled by the 1.6 monitor scale (measured ~9x difference).
+
+**Why:** depends on both the Omarchy Alt+Tab binding and `force_zero_scaling` staying as
+they are — recheck after an upgrade. Details and the measurements in
+[../remmina/README.md](../remmina/README.md).
 
 ---
 

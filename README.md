@@ -2,12 +2,13 @@
 
 Small fixes I keep around for an Omarchy setup.
 
-This repo currently has five buckets:
+This repo currently has six buckets:
 
 - `waybar/`: custom Waybar widgets and config snippets
 - `omarchy/`: power profile, brightness, and screenshot fixes for Omarchy
 - `hypr/`: Hyprland config files with no upstream Omarchy equivalent
 - `shell/`: zsh config and Powerlevel10k prompt
+- `remmina/`: RDP client config — guest hotkeys and sharpness on a fractional-scale panel
 - `docs/`: notes about this setup
 
 See [docs/customizations.md](docs/customizations.md) for a full inventory of what is
