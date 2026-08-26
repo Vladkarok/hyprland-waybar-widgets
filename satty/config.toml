@@ -1,4 +1,0 @@
-[general]
-# Exit after copy/save/save-as actions (replaces the old wrapper's
-# --early-exit / --early-exit-save-as flags, merged upstream in 0.21.0)
-early-exit = true
