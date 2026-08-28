@@ -412,7 +412,7 @@ Included files:
 - `omarchy/bin/omarchy-powerprofiles-set`
 - `omarchy/bin/omarchy-brightness-display`
 - `omarchy/patches/omarchy-menu-power-profile.patch`
-- `satty/config.toml`: enables Satty auto-close after save/copy (0.21.x+)
+- `tensaku/config.toml`: closes the screenshot editor after copy/save/save-as
 
 ### Power Profile Fixes
 
@@ -448,119 +448,161 @@ Notes:
 - The governor recovery path uses `sudo -n` when it is not already running as root.
 - The helper only resets governors when a non-`performance` profile should be active and the kernel is still pinned to `performance`.
 
-### Screenshot: Satty Save-As Defaults + Auto-Close
+### Screenshot Annotation: Satty → Tensaku
 
-**Resolved upstream — no local fork needed as of Satty 0.21.0.**
+**Nothing to install — Omarchy 4 replaced Satty entirely.**
 
-The Save As filename prefill and remembered-directory behavior were merged into
-Satty itself ([gabm/satty#499](https://github.com/gabm/satty/pull/499),
-released in 0.21.0) and reached Arch `extra` in 0.21.1-1. If you are on Satty
-≥ 0.21.0, drop the old custom scripts and use stock Omarchy plus one config
-line.
+Omarchy 4 drops Satty and ships [Tensaku](https://github.com/jondkinney/tensaku)
+as the screenshot annotator (`tensaku` 0.28.0, GTK4 + libadwaita, MPL-2.0).
+`omarchy-capture-screenshot` reads the editor from `$OMARCHY_SCREENSHOT_EDITOR`
+and falls back to `tensaku-edit`, so it works with no configuration. The upgrade
+uninstalls the `satty` package.
 
-**1. Save As defaults (native).**
+Tensaku is a Satty fork and keeps the same CLI surface — `--actions-on-enter`,
+`--early-exit`, `--copy-command`, `--corner-roundness`,
+`--annotation-size-factor`, `--default-hide-toolbars`. Its `--help` text still
+carries Satty's own version notes verbatim ("0.20.1: This does not apply to save
+as"), and the packaged wrapper `/usr/bin/tensaku-edit` says outright that it
+matches "what Omarchy's built-in satty editor branch passes".
 
-Stock Omarchy already passes `--output-filename` to Satty, which is all the
-merged feature needs. Satty now:
+**The Save-As work survived the switch.** The filename prefill and remembered
+directory from [gabm/satty#499](https://github.com/gabm/satty/pull/499) came
+across with the fork: the wrapper passes `--output-filename`, which is all the
+feature needs, and the remembered directory lands in
+`~/.local/state/tensaku/save_as_last_dir`. No local patch, no config.
 
-- Prefills the Save As filename from `--output-filename`.
-- Remembers the last accepted Save As directory, stored in the XDG state dir
-  (`~/.local/state/satty/save_as_last_dir`), and reopens there next time.
-
-**2. Auto-close after save / copy / save-as.**
-
-0.21.0 merged the old `--early-exit` / `--early-exit-save-as` flags into a
-single `--early-exit [copy|save|save-as|all]` (bare = `all`). Stock Omarchy
-does not pass it on the CLI, so set it once in `satty/config.toml`:
+**Auto-close is back, and it is per action now.** The packaged wrapper passes
+`--actions-on-enter save-to-clipboard --save-after-copy --copy-command wl-copy`
+and does *not* pass `--early-exit`, so the auto-close that
+`~/.config/satty/config.toml` used to provide has to be re-declared. Tensaku
+reads `~/.config/tensaku/config.toml`:
 
 ```toml
 [general]
-early-exit = true
+close-on-copy = true
+close-on-save = true
+early-exit-save-as = true
 ```
 
-Install (config only — the screenshot script is stock Omarchy):
+Which key ends which action (`src/sketch_board.rs`):
+
+| Action | Reached by | Closes on |
+|---|---|---|
+| `SaveToClipboard` | Enter, via the wrapper's `--actions-on-enter` | `close-on-copy` |
+| `SaveToFile` | Ctrl+S | `close-on-save` |
+| `SaveToFileAs` | Save As | `early-exit-save-as` |
+
+Satty's old single `early-exit` still parses — it is a fallback that fills in
+`close-on-copy` and `close-on-save` when neither is set explicitly — but it
+never covered Save As, which is why the third key exists. Note that Enter runs
+through *copy*, not save, even though `--save-after-copy` writes the file: with
+only `close-on-save` set, the default Omarchy flow leaves the window open.
+
+Config keys are validated on startup (`deny_unknown_fields`), so a typo is a
+loud parse error rather than a silently ignored line. `tensaku --doctor` is
+enough to check it.
+
+Beyond Satty, Tensaku adds `--scroll-capture` (scrolling screenshots, with
+auto-scroll over the xdg-desktop-portal RemoteDesktop/libei handshake),
+`--resize smart`, `--fullscreen current|all`, and `--floating-hack`.
+
+Migration cleanup, once Satty is gone:
 
 ```bash
-install -Dm644 satty/config.toml ~/.config/satty/config.toml
+rm -rf ~/.config/satty ~/.local/state/satty
 ```
-
-Migration from the old local build:
-
-```bash
-rm -f ~/.local/bin/satty ~/.local/bin/omarchy-capture-screenshot
-rm -f ~/.config/satty/save_as_last_dir   # 0.21.x uses ~/.local/state/satty/
-```
-
-The removed `--early-exit-save-as` flag means the old wrapper errors against
-0.21.x, so this migration is required, not optional.
 
 Notes:
 
-- Historical: this started as a shell wrapper (`omarchy-cmd-screenshot`, using
-  a `gsettings` filechooser hack) and then a patched Satty build. Both are
-  retired now that the behavior is upstream.
+- Historical: a shell wrapper (`omarchy-cmd-screenshot`, `gsettings` filechooser
+  hack) → a patched Satty build → upstream Satty 0.21.x → Omarchy 4 on Tensaku.
+  Every local workaround on this path is now retired.
 - Earlier stale PRs on this topic: #2421, #3226.
+- Omarchy discussions #5438 (RESOLVED) and #5439 (OUTDATED) were closed against
+  Satty and need no revisiting.
 
 ## Hyprland
 
-Config files that have **no upstream Omarchy equivalent**. Omarchy's
-`omarchy-refresh-hyprland` can restore any of its own defaults, but it knows
-nothing about these two, so this is their only backup.
+Personal overrides that have **no upstream Omarchy equivalent**. Omarchy's
+`omarchy refresh hyprland` can restore any of its own defaults, but it knows
+nothing about these, so this is their only backup.
 
-Both are sourced from `~/.config/hypr/hyprland.conf`, after the Omarchy defaults
-so they take precedence:
+Omarchy 4 moved the whole config from `.conf` to Lua, and a `.lua` entry point
+cannot `source` a `.conf` file, so the old files here were translated rather
+than copied. `~/.config/hypr/hyprland.lua` loads Omarchy's defaults first and
+the personal files after, which is what makes them win:
 
-```
-source = ~/.config/hypr/envs.conf
-source = ~/.config/hypr/windows.conf
-```
-
-### `hypr/windows.conf`
-
-Global window defaults plus per-app rules.
-
-The two global rules at the top open new windows floating and disable all
-transparency:
-
-```
-windowrule = float on, match:class .*
-windowrule = opacity 1 1, match:class .*
+```lua
+require("default.hypr.omarchy")
+require("hypr.envs")
+require("hypr.bindings")
+require("hypr.looknfeel")
+require("hypr.windows")
 ```
 
-The opacity rule is needed because Omarchy does not set
-`decoration:active_opacity` (it is already `1.0`) — it tags every window with
-`default-opacity` in `default/hypr/windows.conf` and then applies
-`opacity 0.985 0.96` to that tag. The blanket rule overrides that and the
-per-app browser rules.
+### `hypr/windows.lua`
 
-**Rule order matters.** Hyprland applies matching rules in sequence, so the
-blanket `float on` must stay above the per-app `tile on` rules. That is what
-keeps the autostart chat apps tiled while everything else floats.
+Per-app window rules, written with Omarchy's `o.window(match, rules)` helper.
 
-The per-app rules pin chat apps to workspaces 1 and 2, put Last War and
-xclicker on workspaces 5 and 15, and disable blur/shadow on `steam_proton` for
-performance. The app classes were found by trial and error and are not
-guessable — Whatsie, for example, reports `com.ktechpit.whatsie`.
+Chat apps (Discord, Telegram, WhatsApp/Whatsie, Viber) land on workspace 1 as a
+single tabbed group. `group = "set"` opens each as a group and Hyprland's
+`group.auto_group` merges the next one in, so the rules deliberately do *not*
+use `silent` — auto-group only merges into the **focused** group, and
+`autostart.lua` staggers the launches so they map in order.
 
-### `hypr/envs.conf`
+Two rules are load-bearing in a way that is easy to undo by accident:
 
-`SDL_VIDEODRIVER=wayland` and a custom `OMARCHY_SCREENSHOT_DIR`.
+- `float = false` on chat apps and on Last War. These map transient splash or
+  login windows under the same class; one floating member drags the entire
+  group floating.
+- `group = "override barred"` on Telegram's media viewer and Discord's updater.
+  Both share the class of their main window, so without it they join the group
+  and hijack it — fullscreen a picture, close it, and the survivor stays stuck
+  fullscreen.
 
-Note Omarchy 4.0 ships a commented `OMARCHY_SCREENSHOT_DIR` slot in
-`uwsm/default` — prefer that over a separate file when migrating.
+The opacity line restates Omarchy's own `default-opacity` tag rule (`"1 0.96"`)
+so the focused window is fully opaque; Omarchy applies opacity through that tag,
+not through `decoration:active_opacity`, so overriding it requires restating the
+tag rule after the defaults load.
+
+App classes were found by trial and error and are not guessable — Whatsie
+reports `com.ktechpit.whatsie`, Last War runs as `steam_proton` and is separated
+from its launcher only by window title.
+
+### `hypr/looknfeel.lua`
+
+Zero gaps, `misc:focus_on_activate = false` (an activation request from another
+workspace should not yank the view over — this was in the old `looknfeel.conf`
+and the Lua migration dropped it), and a tightened groupbar: no indicator gap,
+3px between tabs, and opaque tab chips so the wallpaper shows only in the seams
+and the tab borders stay readable.
+
+### `hypr/bindings.lua`
+
+Personal rebinds only, each through a local `rebind()` that unbinds first so a
+future Omarchy update cannot claim the key back: Last War, ChatGPT and Claude
+desktop apps over Omarchy's web-app bindings, `emote` as the emoji picker, a
+lid-close handler that turns the panel off without locking, a passthrough submap
+for RDP/VM guests, and `SUPER + CTRL + SHIFT + arrows` to reorder tabs inside a
+group (Omarchy binds only focus movement, `SUPER + CTRL + arrows`).
+
+### `hypr/envs.lua`
+
+`SDL_VIDEODRIVER=wayland`, a custom `OMARCHY_SCREENSHOT_DIR`, and
+`LIBVA_DRIVER_NAME=iHD` — on this hybrid-GPU laptop Omarchy's `nvidia.lua`
+forces the `nvidia` VA-API driver, which breaks video decode in every
+Chromium-based app.
 
 ### Install
 
 ```bash
-cp hypr/windows.conf hypr/envs.conf ~/.config/hypr/
-hyprctl reload
+cp hypr/*.lua ~/.config/hypr/
+hyprctl reload && hyprctl configerrors
 ```
 
-Then confirm both are sourced in `~/.config/hypr/hyprland.conf`.
-
-Omarchy 4.0 replaces this `.conf` format with Lua and cannot source `.conf`
-files from a `.lua` entry point, so these need translating rather than copying.
-See [docs/customizations.md](docs/customizations.md).
+`hyprland.lua` is included, so this also restores the `require` order above.
+See [docs/customizations.md](docs/customizations.md) for the full inventory
+(still written against the pre-Omarchy-4 `.conf` layout).
 
 ## Shell
 
